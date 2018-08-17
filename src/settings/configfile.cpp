@@ -106,8 +106,8 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
 
 enum State { START, HEADER, BODY, END };
 bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::istream &is) {
-    static const int D = 1;
-    static const std::string debugHeader = std::string(50, '-');
+//    static const int D = 1;
+//    static const std::string debugHeader = std::string(50, '-');
 
     std::regex regEmpty = std::regex("[[:space:]]*");
     std::regex regComment = std::regex("#.*");

@@ -28,3 +28,12 @@ add_library(tools STATIC
     "src/settings/configfile.h"
     "src/random/dice.hpp"
 )
+
+set(CONFIG "${PROJECT_SOURCE_DIR}/../packages/${PROJECT_NAME}-config.cmake")
+file(GENERATE
+    OUTPUT ${CONFIG}
+    CONTENT
+"# CMake configuration settings for project ${PROJECT_NAME}
+set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src)
+set(${PROJECT_NAME}_LIBRARIES $<TARGET_FILE:tools>)\n"
+)

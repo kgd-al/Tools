@@ -4,6 +4,10 @@
 #include "cxxabi.h"
 
 #include <numeric>
+#include <algorithm>
+
+#include <vector>
+#include <map>
 
 namespace utils {
 #ifndef NDEBUG
