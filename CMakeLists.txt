@@ -15,25 +15,46 @@ endif ()
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
+
 ####################################################################################################
-## Static libraries
+## Static library
 ####################################################################################################
 
 add_library(tools STATIC
     "src/utils/utils.cpp"
-    "src/utils/utils.h"
     "src/settings/configfile.cpp"
+    "src/utils/utils.h"
     "src/settings/prettystreamers.hpp"
     "src/settings/prettyenums.hpp"
     "src/settings/configfile.h"
     "src/random/dice.hpp"
+    "src/external/cxxopts.hpp"
+    "src/external/json.hpp"
 )
 
-set(CONFIG "${PROJECT_SOURCE_DIR}/../packages/${PROJECT_NAME}-config.cmake")
+
+####################################################################################################
+## Export configuration
+####################################################################################################
+
+install(TARGETS tools ARCHIVE DESTINATION lib/kgd)
+
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/src/"
+        DESTINATION include/kgd
+        FILES_MATCHING
+            PATTERN "*.h"
+            PATTERN "*.hpp"
+        PERMISSIONS
+            OWNER_EXECUTE OWNER_READ
+            GROUP_EXECUTE GROUP_READ
+)
+
+set(CONFIG "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake")
 file(GENERATE
     OUTPUT ${CONFIG}
     CONTENT
 "# CMake configuration settings for project ${PROJECT_NAME}
-set(${PROJECT_NAME}_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src)
-set(${PROJECT_NAME}_LIBRARIES $<TARGET_FILE:tools>)\n"
+set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include/)
+set(${PROJECT_NAME}_LIBRARIES ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)\n"
 )
+install(FILES ${CONFIG} DESTINATION cmake)
