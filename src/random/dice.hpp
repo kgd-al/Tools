@@ -24,6 +24,8 @@
 #include <assert.h>
 #endif
 
+namespace rng {
+
 /******************************************************************************//**
  * @brief Naive truncated normal distribution.
  *
@@ -357,5 +359,7 @@ public:
     return false;
   }
 };
+
+} // end of namespace rng
 
 #endif // _DICE_HPP_

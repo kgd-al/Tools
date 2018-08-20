@@ -44,10 +44,13 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/src/"
         DESTINATION include/kgd
         FILES_MATCHING
             PATTERN "*.h"
+            PERMISSIONS
+                OWNER_EXECUTE OWNER_READ
+                GROUP_EXECUTE GROUP_READ
             PATTERN "*.hpp"
-        PERMISSIONS
-            OWNER_EXECUTE OWNER_READ
-            GROUP_EXECUTE GROUP_READ
+            PERMISSIONS
+                OWNER_EXECUTE OWNER_READ
+                GROUP_EXECUTE GROUP_READ
 )
 
 set(CONFIG "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake")

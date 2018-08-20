@@ -13,6 +13,12 @@ double __toDegRatio = 180. / M_PI;
 // =================================================================================================
     // Helper functions
 
+bool reset (std::stringstream &ss) {
+  ss.str("");
+  ss.clear();
+  return ss.good();
+}
+
 std::string trimLeading (std::string str, const std::string &whitespaces) {
     size_t i = str.find_first_not_of(whitespaces);
     str.erase(0, i);

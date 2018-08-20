@@ -1,6 +1,8 @@
 #ifndef _PRETTY_ENUMS_HPP_
 #define _PRETTY_ENUMS_HPP_
 
+#include <set>
+
 #include "../utils/utils.h"
 
 /*!

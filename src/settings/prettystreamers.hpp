@@ -32,28 +32,28 @@ struct PrettyReader {
 
 // Pretty Dices =================================
 
-template <> struct PrettyWriter<FastDice, void> {
-    void operator() (std::ostream &os, const FastDice &d) {
+template <> struct PrettyWriter<rng::FastDice, void> {
+    void operator() (std::ostream &os, const rng::FastDice &d) {
         os << d.getSeed();
     }
 };
-template <> struct PrettyReader<FastDice, void> {
-    bool operator() (std::istream &is, FastDice &d) {
-        FastDice::Seed_t seed;
+template <> struct PrettyReader<rng::FastDice, void> {
+    bool operator() (std::istream &is, rng::FastDice &d) {
+        rng::FastDice::Seed_t seed;
         is >> seed;
         d .reset(seed);
         return bool(is);
     }
 };
 
-template <> struct PrettyWriter<AtomicDice, void> {
-    void operator() (std::ostream &os, const AtomicDice &d) {
+template <> struct PrettyWriter<rng::AtomicDice, void> {
+    void operator() (std::ostream &os, const rng::AtomicDice &d) {
         os << d.getSeed();
     }
 };
-template <> struct PrettyReader<AtomicDice, void> {
-    bool operator() (std::istream &is, AtomicDice &d) {
-        AtomicDice::Seed_t seed;
+template <> struct PrettyReader<rng::AtomicDice, void> {
+    bool operator() (std::istream &is, rng::AtomicDice &d) {
+        rng::AtomicDice::Seed_t seed;
         is >> seed;
         d.reset(seed);
         return bool(is);

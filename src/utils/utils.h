@@ -5,6 +5,7 @@
 
 #include <numeric>
 #include <algorithm>
+#include <sstream>
 
 #include <vector>
 #include <map>
@@ -120,6 +121,9 @@ ARRAY readStdArray (const JSON &j) {
     for (uint i=0; i<a.size(); i++) a[i] = ja[i];
     return a;
 }
+
+/*! \brief Reset the provided stringstream (make empty and clears flags) */
+bool reset (std::stringstream &ss);
 
 /*!
  * \returns The value identified by 'key'. It is removed from the container 'map'.
