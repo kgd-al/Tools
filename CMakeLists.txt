@@ -27,6 +27,7 @@ add_library(tools STATIC
     "src/settings/prettystreamers.hpp"
     "src/settings/prettyenums.hpp"
     "src/settings/configfile.h"
+    "src/settings/mutationbounds.hpp"
     "src/random/dice.hpp"
     "src/external/cxxopts.hpp"
     "src/external/json.hpp"
