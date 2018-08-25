@@ -36,17 +36,14 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
                                 std::ostream &os) {
 
     if (iterator.size() == 0) {
-        os << "Empty configuration file" << std::endl;
+        os << "Empty configuration file: " << name << " (either voluntarily or it is unused by this executable)\n" << std::endl;
         return;
     }
 
     // Find directory name
-    std::string thisDir;
+    stdfs::path thisDir;
     const bool toFile = (os.rdbuf() != std::cout.rdbuf());
-    if (toFile) {
-        const size_t pos = filename.find_last_of('/');
-        if (pos != std::string::npos)   thisDir = filename.substr(0, pos+1);
-    }
+    if (toFile) thisDir = stdfs::path(filename).parent_path();
 
     // Finding max field name width
     uint maxNameWidth = 0;

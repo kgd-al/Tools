@@ -17,6 +17,17 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 
 ####################################################################################################
+## Managing g++ support of std 17 filesystem
+####################################################################################################
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9")
+    set(FS_LIB stdc++fs)
+    message(STATUS "> Using experimental std 17 filesystem support")
+  endif()
+endif()
+
+####################################################################################################
 ## Static library
 ####################################################################################################
 
@@ -32,6 +43,7 @@ add_library(tools STATIC
     "src/external/cxxopts.hpp"
     "src/external/json.hpp"
 )
+target_link_libraries(tools ${FS_LIB})
 
 
 ####################################################################################################
@@ -58,7 +70,11 @@ file(GENERATE
     OUTPUT ${CONFIG}
     CONTENT
 "# CMake configuration settings for project ${PROJECT_NAME} (${CMAKE_BUILD_TYPE})
+
 set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include/)
-set(${PROJECT_NAME}_LIBRARIES ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)\n"
+
+set(${PROJECT_NAME}_LIBRARIES
+    ${FS_LIB}
+    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)\n"
 )
 install(FILES ${CONFIG} DESTINATION cmake)
