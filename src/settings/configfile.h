@@ -51,12 +51,22 @@ std::string verbosityValues (void);
 // =================================================================================================
 // Parameter defining macros
 
-#define DECLARE_PARAMETER(TYPE, NAME) static ConfigValue<TYPE> NAME;
+#define __DECLARE_PARAMETER_PRIVATE(TYPE, NAME) static ConfigValue<TYPE> NAME;
 #define __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, ...) \
   CFILE::ConfigValue<TYPE> CFILE::NAME (config_iterator(), #NAME, __VA_ARGS__);
 
+#define DECLARE_PARAMETER(TYPE, NAME) __DECLARE_PARAMETER_PRIVATE(TYPE, NAME)
+
 #define DEFINE_PARAMETER(TYPE, NAME, ...) __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, __VA_ARGS__)
 #define DEFINE_MAP_PARAMETER(TYPE, NAME, ...) __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, TYPE(__VA_ARGS__))
+
+#ifndef NDEBUG
+#define DECLARE_DEBUG_PARAMETER(TYPE, NAME, ...) __DECLARE_PARAMETER_PRIVATE(TYPE, NAME)
+#define DEFINE_DEBUG_PARAMETER(TYPE, NAME, ...) __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, __VA_ARGS__)
+#else
+#define DECLARE_DEBUG_PARAMETER(TYPE, NAME, ...) static constexpr ConstConfigValue<TYPE> NAME { __VA_ARGS__ };
+#define DEFINE_DEBUG_PARAMETER(TYPE, NAME, ...)
+#endif
 
 #define DECLARE_SUBCONFIG(TYPE, NAME) static SubconfigFile<TYPE> NAME;
 #define DEFINE_SUBCONFIG(TYPE, NAME) \
@@ -150,7 +160,19 @@ protected:
       } else
         return false;
     }
+  };
 
+  template <typename T>
+  struct ConstConfigValue {
+    template <typename... ARGS>
+    constexpr ConstConfigValue (ARGS&&... args) : _value(std::forward<ARGS>(args)...) {}
+
+    const T& operator() (void) const {
+      return _value;
+    }
+
+  private:
+    T _value;
   };
 
   struct TSubconfigFile : public IConfigValue {
@@ -252,7 +274,7 @@ public:
     else if (path.extension() != EXT)
       path /= defaultFilename();
 
-    _filename = stdfs::absolute(path).string();
+    _filename = path.string();
 
     stdfs::create_directories(path.parent_path());
     std::ofstream ofs (_filename);
