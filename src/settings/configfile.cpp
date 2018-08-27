@@ -55,7 +55,7 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
 
 
     // Generate/print header
-    uint prefixSize = (*iterator.begin()).second.prefix().length();
+    uint prefixSize = toFile ? 0 : (*iterator.begin()).second.prefix().length();
     const std::string title = std::string(" ") + name + std::string(" ");
     uint halfTitleSize = (title.length()-1)/2;
     if (prefixSize + maxNameWidth <= halfTitleSize) maxNameWidth = halfTitleSize - prefixSize + 1;
@@ -87,8 +87,8 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
                 subconfigFiles.insert(p);
         }
 
-        os << p.second.prefix()
-           << std::string(maxNameWidth - p.first.length(), ' ')
+        if (!toFile)  os << p.second.prefix();
+        os << std::string(maxNameWidth - p.first.length(), ' ')
            << p.first << ": " << p.second << "\n";
     }
 
@@ -110,7 +110,7 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
     std::regex regComment = std::regex("#.*");
     std::regex regSeparator = std::regex ("=+");
     std::regex regConfigFileName = std::regex("=+ ([[:alnum:]]+) =+");
-    std::regex regDataRow = std::regex("\\[.\\] +([[:alnum:]_]+): ?(.+)");
+    std::regex regDataRow = std::regex(" *([[:alnum:]_]+): ?(.+)");
     std::regex regMapField = std::regex("map\\([[:alnum:]_: ]+, [[:alnum:]_: ]+\\)");
 
     std::smatch matches;
