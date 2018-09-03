@@ -17,6 +17,8 @@
  */
 
 namespace utils {
+// =============================================================================
+
 /// Use the variable on non-debug builds to quiet the compilator down
 #ifndef NDEBUG
 #define assertVar(X)
@@ -117,6 +119,7 @@ std::ostream& operator<< (std::ostream &os, const std::pair<T1, T2> &p) {
   return os << "{" << p.first << "," << p.second << "}";
 }
 
+/// \return a filled std::array
 template <typename ARRAY>
 ARRAY uniformStdArray(typename ARRAY::value_type v) {
   ARRAY a;
@@ -124,6 +127,8 @@ ARRAY uniformStdArray(typename ARRAY::value_type v) {
   return a;
 }
 
+/// \return a std::array read from the provided json array
+/// \throws std::logic_error if arrays have different sizes
 template <typename JSON, typename ARRAY>
 ARRAY readStdArray (const JSON &j) {
   using jsonArray = std::vector<typename ARRAY::value_type>;
@@ -143,12 +148,10 @@ ARRAY readStdArray (const JSON &j) {
   return a;
 }
 
-/*! \brief Reset the provided stringstream (make empty and clears flags) */
+/// Reset the provided stringstream (make empty and clears flags)
 bool reset (std::stringstream &ss);
 
-/*!
- * \returns The value identified by 'key'. It is removed from the container 'map'.
- */
+/// \returns The value identified by 'key'. It is removed from the container 'map'.
 template <typename KEY, typename VAL>
 VAL take (std::map<KEY, VAL> &map, KEY key) {
   auto it = map.find(key);
@@ -157,42 +160,56 @@ VAL take (std::map<KEY, VAL> &map, KEY key) {
   return val;
 }
 
-/*! \brief Removes leading and trailing spaces from 'str' */
+/// \return a copy of \p str without leading and trailing spaces
 std::string trimLeading (std::string str, const std::string &whitespaces=" \t");
 
-/*! \brief Removes all space from 'str' */
+/// \return a copy of \p str without spaces
 std::string trim (std::string str);
 
-/*! \brief Removes one layer of quoting from 'str' */
+/// \return a copy of \p str unquoted by one level
 std::string unquote (std::string str);
 
-/*! \brief Cuts 's' in tokens separated by the character 'delim' */
+/// \return The elements in the \p delim separated list \p s
 std::vector<std::string> split(const std::string &s, char delim);
 
+/// \return the contents of \p filename as a single string
 std::string readAll (const std::string &filename);
+
+/// \return the contents of \p ifs as a single string
 std::string readAll (std::ifstream &ifs);
 
+
+// =============================================================================
+
+/// Helper structure for accessing current time
+/// \code{cpp}
+/// std::cout << "Current time is: " << CurrentTime{} << std::endl;
+/// \endcode
 struct CurrentTime {
+  /// The format used for formatting
   const std::string format;
 
+  /// Builds a time streamer using the (possibly default) specified format
   CurrentTime (const std::string &format="%c") : format(format) {}
 
+  /// Insert the object into stream \p os
   friend std::ostream& operator<< (std::ostream &os, const CurrentTime &ct);
 };
 
+// =============================================================================
 
-/*! \brief Provides checksum capabilities */
+/// Provides checksum capabilities
 template <typename JSON>
 struct CRC32 {
+  /// The integral type used to store the CRC
   using type = std::uint_fast32_t;
 
 private:
+  /// The lookup-table type
   using lookup_table_t = std::array<type, 256>;
 
-  /*!
-     * Generates a lookup table for the checksums of all 8-bit values.
-     * \authors https://rosettacode.org/wiki/CRC-32#C.2B.2B
-     */
+  /// Generates a lookup table for the checksums of all 8-bit values.
+  /// \authors https://rosettacode.org/wiki/CRC-32#C.2B.2B
   static lookup_table_t generate_crc_lookup_table() noexcept {
     auto const reversed_polynomial = type{0xEDB88320uL};
 
@@ -218,32 +235,33 @@ private:
   }
 
 public:
-  /*!
-     * Calculates the CRC for any sequence of values. (You could use type traits and a
-     * static assert to ensure the values can be converted to 8 bits.)
-     * \authors https://rosettacode.org/wiki/CRC-32#C.2B.2B
-     */
+  /// Calculates the CRC for any sequence of values. (You could use type traits
+  /// and a static assert to ensure the values can be converted to 8 bits.)
+  /// \authors https://rosettacode.org/wiki/CRC-32#C.2B.2B
   template <typename InputIterator>
   type operator() (InputIterator first, InputIterator last) const {
-    // Generate lookup table only on first use then cache it - this is thread-safe.
+    // Generate lookup table only on first use then cache it (thread-safe).
     static lookup_table_t const table = generate_crc_lookup_table();
 
-    // Calculate the checksum - make sure to clip to 32 bits, for systems that don't
-    // have a true (fast) 32-bit type.
+    // Calculate the checksum - make sure to clip to 32 bits, for systems that
+    // don't have a true (fast) 32-bit type.
     return type{0xFFFFFFFFuL} &
-    ~std::accumulate(first, last,
-    ~type{0} & type{0xFFFFFFFFuL},
-  [] (type checksum, type value) {
-    return table[(checksum ^ value) & 0xFFu] ^ (checksum >> 8);
+          ~std::accumulate(first, last,
+            ~type{0} & type{0xFFFFFFFFuL},
+            [] (type checksum, type value) {
+              return table[(checksum ^ value) & 0xFFu] ^ (checksum >> 8);
+            }
+          );
   }
-  );
-}
 
-using Binarizer = std::vector<uint8_t> (*) (const JSON&);
-type operator() (const JSON &j, Binarizer binarizer = &JSON::to_cbor) const {
-  auto bin = binarizer(j);
-  return operator() (bin.begin(), bin.end());
-}
+  /// Function type for a converter json to byte array
+  using Binarizer = std::vector<uint8_t> (*) (const JSON&);
+
+  /// Computes the CRC associated to the provided json
+  type operator() (const JSON &j, Binarizer binarizer = &JSON::to_cbor) const {
+    auto bin = binarizer(j);
+    return operator() (bin.begin(), bin.end());
+  }
 };
 
 } // end of namespace utils

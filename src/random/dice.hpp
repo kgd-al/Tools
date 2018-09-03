@@ -223,6 +223,12 @@ public:
     return operator()(.5) ? v1 : v2;
   }
 
+  /// Assigns either value from \p lhs or \p rhs 's \p field to \p res 's
+  template <typename T, typename O>
+  void toss (const O &lhs, const O &rhs, O &res, T O::*field) {
+    res.*field = toss(lhs.*field, rhs.*field);
+  }
+
   /// Suffles the contents of \p c via an in-place implementation of the fisher-yattes algorithm
   /// \see https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
   /// \tparam CONTAINER type with random access capabilities (e.g. vector)

@@ -57,6 +57,7 @@ cmake_policy(SET CMP0057 NEW)
 find_package(Doxygen REQUIRED dot)
 
 set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/docs")
+set(DOXYGEN_GENERATE_TAGFILE "${DOXYGEN_OUTPUT_DIRECTORY}/tools.tag")
 
 set(DOXYGEN_ENABLED_SECTIONS "internal")
 set(DOXYGEN_EXTRACT_PRIVATE YES)
@@ -70,17 +71,23 @@ doxygen_add_docs(docs ${SOURCES} COMMENT "Generating documentation")
 
 install(TARGETS tools ARCHIVE DESTINATION lib/kgd)
 
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/src/"
-        DESTINATION include/kgd
-        FILES_MATCHING
-            PATTERN "*.h"
-            PERMISSIONS
-                OWNER_EXECUTE OWNER_READ
-                GROUP_EXECUTE GROUP_READ
-            PATTERN "*.hpp"
-            PERMISSIONS
-                OWNER_EXECUTE OWNER_READ
-                GROUP_EXECUTE GROUP_READ
+install(
+    DIRECTORY "${CMAKE_SOURCE_DIR}/src/"
+    DESTINATION include/kgd
+    FILES_MATCHING
+        PATTERN "*.h"
+        PERMISSIONS
+            OWNER_EXECUTE OWNER_READ
+            GROUP_EXECUTE GROUP_READ
+        PATTERN "*.hpp"
+        PERMISSIONS
+            OWNER_EXECUTE OWNER_READ
+            GROUP_EXECUTE GROUP_READ
+)
+
+install(
+    DIRECTORY "${CMAKE_SOURCE_DIR}/docs"
+    DESTINATION docs/tools
 )
 
 set(CONFIG "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake")
@@ -93,6 +100,8 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include/)
 
 set(${PROJECT_NAME}_LIBRARIES
     ${FS_LIB}
-    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)\n"
+    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)
+
+set(${PROJECT_NAME}_DOXYGEN ${CMAKE_INSTALL_PREFIX}/docs/tools/tools.tag)\n"
 )
 install(FILES ${CONFIG} DESTINATION cmake)

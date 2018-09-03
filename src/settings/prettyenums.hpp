@@ -45,7 +45,7 @@ template <typename>
 struct EnumMetaData;
 
 /// Helper type to check if a type is an enumeration with associated metadata
-template <class E>
+template <class T>
 struct is_pretty_enum {
   /// Whether or not type \p T has enumeration metadata
   static constexpr bool value =
@@ -333,18 +333,18 @@ std::istream& operator>> (std::istream &is, E& e) {
 }
 
 /// Define a pretty enumeration residing in scope \p NAME and no namespace
-#define DEFINE_PRETTY_ENUMERATION(NAME, ...)        \
+#define DEFINE_PRETTY_ENUMERATION(NAME, ...)      \
   __PRETTY_ENUM_DECLARE(class, NAME, __VA_ARGS__) \
   __PRETTY_ENUM_METADATA(, NAME, __VA_ARGS__)
 
 /// Define a pretty enumeration residing in global scope
 #define DEFINE_UNSCOPED_PRETTY_ENUMERATION(NAME, ...) \
-  __PRETTY_ENUM_DECLARE(, NAME, __VA_ARGS__)   \
+  __PRETTY_ENUM_DECLARE(, NAME, __VA_ARGS__)          \
   __PRETTY_ENUM_METADATA(, NAME, __VA_ARGS__)
 
 /// Define a pretty enumeration residing in namespace \p NAMESPACE
-#define DEFINE_NAMESPACE_PRETTY_ENUMERATION(NAMESPACE, NAME, ...)           \
-  namespace NAMESPACE { __PRETTY_ENUM_DECLARE(, NAME, __VA_ARGS__) } \
+#define DEFINE_NAMESPACE_PRETTY_ENUMERATION(NAMESPACE, NAME, ...)     \
+  namespace NAMESPACE { __PRETTY_ENUM_DECLARE(, NAME, __VA_ARGS__) }  \
   __PRETTY_ENUM_METADATA(NAMESPACE, NAME, __VA_ARGS__)
 
 
@@ -356,16 +356,16 @@ std::istream& operator>> (std::istream &is, E& e) {
 
 /// Defines the pretty enumeration metadata
 #define __PRETTY_ENUM_METADATA(NAMESPACE, NAME, ...)    \
-  namespace _details {                                \
-  template <> struct EnumMetaData<NAMESPACE::NAME> {  \
-  static constexpr const char * name (void) {     \
-  return #NAME;                               \
-  }                                               \
-  static constexpr const char * values (void) {   \
-  return #__VA_ARGS__;                        \
-  }                                               \
-  };                                                  \
-  }                                                   \
+  namespace _details::deepmagic {                       \
+    template <> struct EnumMetaData<NAMESPACE::NAME> {  \
+      static constexpr const char * name (void) {       \
+        return #NAME;                                   \
+      }                                                 \
+      static constexpr const char * values (void) {     \
+      return #__VA_ARGS__;                              \
+      }                                                 \
+    };                                                  \
+  }                                                     \
 /// \endcond
 
 #endif // _PRETTY_ENUMS_HPP_

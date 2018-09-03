@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 
-/// TODO Remove experimental when gaining access to a recent enough version of g++
+/// \todo Remove experimental when gaining access to a recent enough version of g++
 #include <experimental/filesystem>
 namespace stdfs = std::experimental::filesystem;
 
@@ -285,7 +285,7 @@ protected:
 
     /// Prints out the current filename for this config file
     std::ostream& output (std::ostream &os) const override {
-      return os << C::_filename;
+      return os << C::_path;
     }
 
     /// Delegate printing out this wrapper to the underlying configuration file

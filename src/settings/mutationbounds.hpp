@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include <random>
+
 /*!
  *\file mutationbounds.hpp
  *
@@ -13,11 +14,19 @@
 /// Provide handy types for mutation bounds definition
 struct MutationSettings {
 
-  /// Mutation bounds for a primitive type
+  /// Mutation bounds for a specific field
   /// \tparam T a primitive type (int, float, ...)
-  template <typename T>
-  struct Bounds {
+  /// \tparam O the object containing this field
+  /// \tparam FIELD the field offset
+  template <typename T, typename O>
+  class Bounds {
+    /// The field type for these bounds
+    using Field = T O::*;
 
+    /// The offset to the managed field
+    Field field;
+
+  public:
     /// Minimal value reachable through random initialisation/mutation
     T min;
 
@@ -31,23 +40,29 @@ struct MutationSettings {
     T max;
 
     /// Use provided bounds a absolute minimal, initial minimal, initial maximal, absolute maximal
-    Bounds (T min, T rndMin, T rndMax, T max)
-      : min(min), rndMin(rndMin), rndMax(rndMax), max(max) {
+    Bounds (Field f, T min, T rndMin, T rndMax, T max)
+      : field(f), min(min), rndMin(rndMin), rndMax(rndMax), max(max) {
       assert(min <= rndMin && rndMin <= rndMax && rndMax <= max);
     }
 
     /// No difference between absolute and initial extremums
-    Bounds (T min, T max) : Bounds(min, min, max, max) {}
+    Bounds (Field f, T min, T max) : Bounds(f, min, min, max, max) {}
 
     /// Different absolute and initial minimals. Identical for maximal.
-    Bounds (T min, T rndMin, bool, T max) : Bounds(min, rndMin, max, max) {}
+    Bounds (Field f, T min, T rndMin, bool, T max) : Bounds(f, min, rndMin, max, max) {}
 
     /// Different absolute and initial maximals. Identical for minimal.
-    Bounds (T min, bool, T rndMax, T max) : Bounds(min, min, rndMax, max) {}
+    Bounds (Field f, T min, bool, T rndMax, T max) : Bounds(f, min, min, rndMax, max) {}
 
     /// \return the range of valid values for these bounds
     double span (void) const {
       return double(max) - double(min);
+    }
+
+    /// \return the absolute distance for \p field between \p lhs and \p rhs
+    /// scaled by the maximal span for this field
+    double distance (const O &lhs, const O &rhs) const {
+      return fabs(lhs.*field - rhs.*field) / span();
     }
 
     /// \return a value in the initial range
@@ -58,9 +73,9 @@ struct MutationSettings {
     }
 
     /// Mutates the integer \p v according to the absolute bounds
-    template <typename U=T>
-    std::enable_if_t<std::is_integral<U>::value, void>
-    mutate (U &v, rng::AbstractDice &dice) const {
+    std::enable_if_t<std::is_integral<T>::value, void>
+    mutate (O &o, rng::AbstractDice &dice) const {
+      T &v = o.*field;
       assert(min <= v && v <= max);
       if (v == min)         v = min + 1;
       else if (v == max)    v = max - 1;
@@ -71,9 +86,9 @@ struct MutationSettings {
     static constexpr double __MUTATE_SCALAR_MAGIC_BULLET = 1e-2;
 
     /// Mutates the decimal \p v according to the absolute bounds
-    template <typename U=T>
-    std::enable_if_t<std::is_floating_point<U>::value, void>
-    mutate (U &v, rng::AbstractDice &dice) const {
+    std::enable_if_t<std::is_floating_point<T>::value, void>
+    mutate (O &o, rng::AbstractDice &dice) const {
+      T &v = o.*field;
       assert(min <= v && v <= max);
       if (min < max) {
         rng::tndist dist (0, span() * __MUTATE_SCALAR_MAGIC_BULLET, min - v, max - v, true);
@@ -94,9 +109,6 @@ struct MutationSettings {
     }
 
   };
-
-  /// Alias type for shorter configuration files
-  template <typename T> using B = Bounds<T>;
 
   /// Another alias type for shorter configuration files
   template <typename ENUM>
