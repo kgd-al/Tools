@@ -31,7 +31,7 @@ endif()
 ## Static library
 ####################################################################################################
 
-add_library(tools STATIC
+set(SOURCES
     "src/utils/utils.cpp"
     "src/settings/configfile.cpp"
     "src/utils/utils.h"
@@ -40,10 +40,28 @@ add_library(tools STATIC
     "src/settings/configfile.h"
     "src/settings/mutationbounds.hpp"
     "src/random/dice.hpp"
+)
+set (EXTERNALS
     "src/external/cxxopts.hpp"
     "src/external/json.hpp"
 )
+add_library(tools STATIC ${SOURCES} ${EXTERNALS})
 target_link_libraries(tools ${FS_LIB})
+
+
+####################################################################################################
+## Make documentation
+####################################################################################################
+
+cmake_policy(SET CMP0057 NEW)
+find_package(Doxygen REQUIRED dot)
+
+set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/docs")
+
+set(DOXYGEN_ENABLED_SECTIONS "internal")
+set(DOXYGEN_EXTRACT_PRIVATE YES)
+
+doxygen_add_docs(docs ${SOURCES} COMMENT "Generating documentation")
 
 
 ####################################################################################################

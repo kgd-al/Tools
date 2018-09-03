@@ -6,10 +6,12 @@
 #include "../utils/utils.h"
 
 /*!
- *\file Implements prettier enumerations.
+ *\file prettyenums.hpp
  *
- * For an enumeration 'E' declared as #DEFINE_PRETTY_ENUMERATION(E, ...) or
- *  #DEFINE_UNSCOPED_PRETTY_ENUMERATION(E, ...), the structure EnumUtils<E> allows:
+ * \brief Implements prettier enumerations.
+ *
+ * For an enumeration 'E' declared as DEFINE_PRETTY_ENUMERATION(E, ...) or
+ *  DEFINE_UNSCOPED_PRETTY_ENUMERATION(E, ...), the structure EnumUtils<E> allows:
  *  - conversion to/from string with exception thrown on invalid inputs (case insensitive, with
  *  or without scope)
  *  - built-in i/o stream operators
@@ -22,27 +24,35 @@
  * It is not required for the values to be contiguous or in increasing order
  *
  * Exemples:
+ * \code{cpp}
  * DEFINE_PRETTY_ENUMERATION(FOO, foo, bar, baz)
  * DEFINE_PRETTY_ENUMERATION(FOO, foo = 0, bar = 1, baz = 2)
  * DEFINE_PRETTY_ENUMERATION(FOO, foo = 1, bar = 2, baz = 4)
+ * \endcode
  */
 
+/// \cond internal
 namespace _details {
 
+/// Helper type to check if a type has been defined
 template <class T, std::size_t = sizeof(T)>
 std::true_type is_complete_impl(T *);
 
+/// Default type denoting a declared but undefined type
 std::false_type is_complete_impl(...);
 
 template <typename>
 struct EnumMetaData;
 
-template <class T>
+/// Helper type to check if a type is an enumeration with associated metadata
+template <class E>
 struct is_pretty_enum {
+  /// Whether or not type \p T has enumeration metadata
   static constexpr bool value =
       decltype(is_complete_impl(std::declval<EnumMetaData<T>*>()))::value;
 };
 
+/// \return the number of comma-separated values in \p s
 constexpr uint countValues (const char *s) {
   uint count = 0;
   const char *current = s;
@@ -55,8 +65,8 @@ constexpr uint countValues (const char *s) {
 }
 
 
+/// \cond deepmagic
 namespace enum_sequence_helper {
-
 
 template <typename E, E... es>
 struct iseq {
@@ -84,28 +94,35 @@ template<typename E> struct make_index_sequence<E, 0> : iseq<E> { };
 template<typename E> struct make_index_sequence<E, 1> : iseq<E, E(0)> { };
 
 } // end of namespace enum_sequence_helper
+/// \endcond
 
 } // end of namespace details
+/// \endcond
 
-
-template <typename>
-struct EnumUtils;
-
+/// Provides reflexive information on an enumeration
+/// \tparam E a prettied-up enumeration
 template <typename E> class EnumUtils {
 
+  /// Alias for the associated metadata
   using MetaData = _details::EnumMetaData<E>;
 
-  /*!
-     * \brief Extract the values for the enumeration described in the MetaData type and builds
-     * the name \leftrightarrow value maps as well as the number of distinct values
-     */
+  /// Extract the values for the enumeration described in the MetaData type and populates the
+  /// various lists
   struct Maps {
+
+    /// Case insensitive comparison functor for strings
     struct CaseInsensitiveLess {
+
+      /// Case insensitive comparison functor for characters
       struct CaseInsensitiveCompare {
+
+        /// \return the case insensitive comparison between \p c1 and \p c2
         bool operator() (const unsigned char &c1, const unsigned char &c2) const {
           return toupper(c1) < toupper(c2);
         }
       };
+
+      /// \return the case insensitive comparison between \p s1 and \p s2
       bool operator() (const std::string &s1, const std::string &s2) const {
         return std::lexicographical_compare (
           s1.begin(), s1.end(), s2.begin(), s2.end(), CaseInsensitiveCompare()
@@ -113,46 +130,65 @@ template <typename E> class EnumUtils {
       }
     };
 
+    /// Alias for a set of enumeration values
     using EnumValues = std::set<E>;
+
+    /// The values described by \p E
     EnumValues values;
 
+    /// Alias for a map type from enumeration value to name
     using EnumValueNameMap = std::map<E, std::string>;
+
+    /// Maps enumeration values to their names
     EnumValueNameMap valueToName;
 
+    /// Alias for a map type from enumeration name to value
     using EnumNameValueMap = std::map<std::string, E, CaseInsensitiveLess>;
+
+    /// Maps enumeration names to their values
     EnumNameValueMap nameToValue;
 
+    /// Number of enumerators
     static const uint _size = _details::countValues(MetaData::values());
 
     Maps (void) {
+      // Retrieve the enumerators
       std::vector<std::string> names =
           utils::split(utils::trim(MetaData::values()), ',');
+
       int i=0;
       for (const std::string &iterator: names) {
+        /// Parse the enumerator
         std::vector<std::string> eqtokens = utils::split(iterator, '=');
         std::string name = prettyEnumName(eqtokens[0]);
         E value;
+
         if (eqtokens.size() == 1) { // Name only -> assign next value
           value = E(i++);
           valueToName.insert({value, name});
+
         } else { // Value provided
           std::istringstream iss (eqtokens.at(1));
           uint v;
           iss >> v;
+
           if (iss) { // Value was an int -> use it
             value = E(v);
             valueToName.insert({value, name});
             i = v;
-          } else { // Value was a name -> use its value
+
+          } else // Value was a name -> use its value
             value = nameToValue.at(eqtokens.at(1));
-          }
         }
+
+        // Populate the containers
         values.insert(value);
         nameToValue.insert({name, value});
         nameToValue.insert({addScope(name), value});
       }
     }
 
+    /// \return A properly formatted enumerator name (lower case, with spaces)
     std::string prettyEnumName (const std::string &name) {
       std::string prettyName (name);
       prettyName[0] = toupper(prettyName[0]);
@@ -162,124 +198,129 @@ template <typename E> class EnumUtils {
     }
   };
 
-  /*! \brief Allows internal access the Map singleton associated with this enumeration */
+  /// Allows internal access the Map singleton associated with this enumeration
   static const Maps& getMaps (void) {
     static const Maps localMaps;
     return localMaps;
   }
 
-  /*! \brief Helper methods returning the enumerator value prepended with the enumeration name */
+  /// Helper methods returning the enumerator value prepended with the enumeration name
   inline static std::string addScope (const std::string &s) {
     return std::string(name()) + "::" + s;
   }
 
 public:
-  /*! The underlying is currently fixed to unsigned int */
+  /// The underlying is currently fixed to unsigned int
   using underlying_t = uint;
 
-  /*! the type of an uniform distribution that can generate valid random enumerator
-     * \see Dice::roll(ENUM)
-     */
+  /// the type of an uniform distribution that can generate valid random enumerator
+  /// \see Dice::roll(ENUM)
   using dist_t = std::uniform_int_distribution<underlying_t>;
 
+  /// \return The lowest enumerator
   static constexpr E min (void) { return getMaps().values.front(); }
+
+  /// \return The underlying value of the lowest enumerator
   static constexpr underlying_t minU (void) { return underlying_t(min()); }
 
+  /// \return The largest enumerator
   static constexpr E max (void) { return getMaps().values().back(); }
+
+  /// \return The underlying value of the largest enumerator
   static constexpr underlying_t maxU (void) { return underlying_t(max()); }
 
-  /*! \return a uniform distribution object
-     * @see Dice::roll(ENUM) and dist_t
-     */
+  /// \return a uniform distribution object
+  /// \see Dice::roll(ENUM) and dist_t
   static constexpr const auto& values (void) {
     return getMaps().values;
   }
 
-  /*! Converts a value of the underlying type into an enumerator. No checks are performed */
+  /// Converts a value of the underlying type into an enumerator. No checks are performed
   static constexpr E fromUnderlying (underlying_t value) {
     return E(value);
   }
 
-  /*! Converts an enumerator into a value of the underlying type. No checks are performed */
+  /// Converts an enumerator into a value of the underlying type. No checks are performed
   static constexpr underlying_t toUnderlying (E value) {
     return underlying_t(value);
   }
 
-  /*! \return The name associated with the enumerator equivalent to this value, if any.
-     * \throws std::out_of_range if the enumerator does not exist
-     */
+  /// \return The name associated with the enumerator equivalent to this value, if any.
+  /// \throws std::out_of_range if the enumerator does not exist
   static const std::string& getName (uint iValue) {
     return getName(E(iValue));
   }
 
-  /*! \return The name associated with this enumerator.
-     * \throws std::out_of_range if the enumerator does not exist
-     */
+  /// \return The name associated with this enumerator.
+  /// \throws std::out_of_range if the enumerator does not exist
   static const std::string& getName (E value) {
     return getMaps().valueToName.at(value);
   }
 
-  /*! \return The scoped name (prepended with the enumeration name) associated with this enumerator.
-     * \throws std::out_of_range if the enumerator does not exist
-     */
+  /// \return The scoped name (prepended with the enumeration name) associated with this enumerator.
+  /// \throws std::out_of_range if the enumerator does not exist
   static const std::string getScopedName (E value) {
     return addScope(getName(value));
   }
 
-  /*! \return The enumerator associated with this name
-     * \throws std::out_of_range if no such enumerator exists
-     */
+  /// \return The enumerator associated with this name
+  /// \throws std::out_of_range if no such enumerator exists
   static E getValue (const std::string &name) {
     return getMaps().nameToValue.at(utils::trimLeading(name));
   }
 
-  /*! Asserts: 0 \leq toUnderlying(value) < size() */
+  /// Asserts: 0 &le; toUnderlying(value) < size()
   static constexpr bool isValid (E value) {
     return getMaps().values.find(value) != getMaps().values.end();
   }
 
-  /*! \return The name of this enumeration */
+  /// \return The name of this enumeration
   static constexpr const char* name (void) {
     return MetaData::name();
   }
 
-  /*! \return the number of different enumerators */
+  /// \return the number of different enumerators
   static constexpr uint size (void) {
     return Maps::_size;
   }
 
-  /*! \return An interator suitable for use in for-range loops */
+  /// \return An interator suitable for use in for-range loops
   static const auto& iterator (void) {
     return getMaps().values;
   }
 
-  /*!
-     * Provides an instantiation of the type std::integer_sequence<E, E::Value1, E::Value2, ...>
-     */
+  /// Provides an instantiation of the type std::integer_sequence<E, E::Value1, E::Value2, ...>
   using enum_sequence =
   typename _details::enum_sequence_helper::make_index_sequence<E, size()>::stdtype;
 };
 
+/// Prints the scoped name for a pretty-enum value \p e to stream \p os
 template <typename E, std::enable_if_t<_details::is_pretty_enum<E>::value, int> = 0>
 std::ostream& operator<< (std::ostream &os, const E& e) {
   return os << EnumUtils<E>::getScopedName(e);
 }
 
+/// Read a pretty-enum value \p e from stream \p os
+/// \attention space support is brittle (at best)
 template <typename E, std::enable_if_t<_details::is_pretty_enum<E>::value, int> = 0>
 std::istream& operator>> (std::istream &is, E& e) {
   std::string val ("");
   bool ok = false;
 
   do {
+    /// Gobble up a space-delimited value
     std::string v;
     is >> v;
     if (!val.empty()) val += " ";
     val += v;
 
+    /// Do not panic if stream is empty
     try {
       e = EnumUtils<E>::getValue(val);
       ok = true;
     } catch (std::out_of_range&) {}
+
+    /// Keep going while there are values to read
   } while (!ok && is);
 
   if (!ok) {
@@ -291,21 +332,29 @@ std::istream& operator>> (std::istream &is, E& e) {
   return is;
 }
 
+/// Define a pretty enumeration residing in scope \p NAME and no namespace
 #define DEFINE_PRETTY_ENUMERATION(NAME, ...)        \
   __PRETTY_ENUM_DECLARE(class, NAME, __VA_ARGS__) \
   __PRETTY_ENUM_METADATA(, NAME, __VA_ARGS__)
 
+/// Define a pretty enumeration residing in global scope
 #define DEFINE_UNSCOPED_PRETTY_ENUMERATION(NAME, ...) \
   __PRETTY_ENUM_DECLARE(, NAME, __VA_ARGS__)   \
   __PRETTY_ENUM_METADATA(, NAME, __VA_ARGS__)
 
+/// Define a pretty enumeration residing in namespace \p NAMESPACE
 #define DEFINE_NAMESPACE_PRETTY_ENUMERATION(NAMESPACE, NAME, ...)           \
   namespace NAMESPACE { __PRETTY_ENUM_DECLARE(, NAME, __VA_ARGS__) } \
   __PRETTY_ENUM_METADATA(NAMESPACE, NAME, __VA_ARGS__)
 
+
+/// \cond internal
+
+/// Declare a pretty enumeration, possibly with a scope
 #define __PRETTY_ENUM_DECLARE(SCOPE, NAME, ...) \
   enum SCOPE NAME { __VA_ARGS__ };
 
+/// Defines the pretty enumeration metadata
 #define __PRETTY_ENUM_METADATA(NAMESPACE, NAME, ...)    \
   namespace _details {                                \
   template <> struct EnumMetaData<NAMESPACE::NAME> {  \
@@ -317,5 +366,6 @@ std::istream& operator>> (std::istream &is, E& e) {
   }                                               \
   };                                                  \
   }                                                   \
+/// \endcond
 
 #endif // _PRETTY_ENUMS_HPP_

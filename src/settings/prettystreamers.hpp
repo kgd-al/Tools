@@ -8,186 +8,222 @@
 #include "../random/dice.hpp"
 #include "prettyenums.hpp"
 
-// =================================================================================================
-    // Helpers for write/read operations formating
+/*!
+ * \file prettystreamers.hpp
+ *
+ * Contains helper templates for reading/writing various types
+ */
 
-// Pretty print/read base templates =============
-
+// =============================================================================
+/// Generic pretty printer. Delegates to T::operator<<
 template <typename T, typename Enabled = void>
 struct PrettyWriter {
-    void operator() (std::ostream &os, const T &value) {
-        using utils::operator<<;
-        os << value;
-    }
+  /// Write the argument to \p os
+  void operator() (std::ostream &os, const T &value) {
+    using utils::operator<<;
+    os << value;
+  }
 };
 
+/// Generic pretty reader. Delegates to T::operator>>
 template <typename T, typename Enabled = void>
 struct PrettyReader {
-    bool operator() (std::istream &is, T &value) {
-        using utils::operator>>;
-        return bool(is >> value);
-    }
+  /// Transfer contents of \p is into the argument
+  bool operator() (std::istream &is, T &value) {
+    using utils::operator>>;
+    return bool(is >> value);
+  }
 };
 
 
-// Pretty Dices =================================
-
+// =============================================================================
+/// FastDice pretty printer
 template <> struct PrettyWriter<rng::FastDice, void> {
-    void operator() (std::ostream &os, const rng::FastDice &d) {
-        os << d.getSeed();
-    }
+  /// \copydoc PrettyWriter
+  void operator() (std::ostream &os, const rng::FastDice &d) {
+    os << d.getSeed();
+  }
 };
+
+/// FastDice pretty reader
 template <> struct PrettyReader<rng::FastDice, void> {
-    bool operator() (std::istream &is, rng::FastDice &d) {
-        rng::FastDice::Seed_t seed;
-        is >> seed;
-        d .reset(seed);
-        return bool(is);
-    }
+  /// \copydoc PrettyReader
+  bool operator() (std::istream &is, rng::FastDice &d) {
+    rng::FastDice::Seed_t seed;
+    is >> seed;
+    d .reset(seed);
+    return bool(is);
+  }
 };
 
+/// AtomicDice pretty printer
 template <> struct PrettyWriter<rng::AtomicDice, void> {
-    void operator() (std::ostream &os, const rng::AtomicDice &d) {
-        os << d.getSeed();
-    }
+  /// \copydoc PrettyWriter
+  void operator() (std::ostream &os, const rng::AtomicDice &d) {
+    os << d.getSeed();
+  }
 };
+
+/// AtomicDice pretty reader
 template <> struct PrettyReader<rng::AtomicDice, void> {
-    bool operator() (std::istream &is, rng::AtomicDice &d) {
-        rng::AtomicDice::Seed_t seed;
-        is >> seed;
-        d.reset(seed);
-        return bool(is);
-    }
+  /// \copydoc PrettyReader
+  bool operator() (std::istream &is, rng::AtomicDice &d) {
+    rng::AtomicDice::Seed_t seed;
+    is >> seed;
+    d.reset(seed);
+    return bool(is);
+  }
 };
 
-// Pretty enums =================================
-
+// =============================================================================
+/// Pretty-enumeration pretty printer (yep, lots of prettiness around)
 template <typename E>
 struct PrettyWriter<E, typename std::enable_if<_details::is_pretty_enum<E>::value>::type> {
-    void operator() (std::ostream &os, const E &e) {
-        os << EnumUtils<E>::getName(e);
-    }
+  /// \copydoc PrettyWriter
+  void operator() (std::ostream &os, const E &e) {
+    os << EnumUtils<E>::getName(e);
+  }
 };
 
+/// Pretty-enumeration pretty reader
 template <typename E>
 struct PrettyReader<E, typename std::enable_if<_details::is_pretty_enum<E>::value>::type> {
-    bool operator() (std::istream &is, E &e) {
-        is >> e;
-        return bool(is);
-    }
+  /// \copydoc PrettyReader
+  bool operator() (std::istream &is, E &e) {
+    is >> e;
+    return bool(is);
+  }
 };
 
 
-// Pretty bools =================================
-
+// =============================================================================
+/// Pretty booleans writer
 template <> struct PrettyWriter<bool, void> {
-    void operator() (std::ostream &os, const bool &b) {
-        auto flags = os.setf(std::ios::boolalpha);
-        os << b;
-        os.setf(flags);
-    }
+  /// \copydoc PrettyWriter
+  void operator() (std::ostream &os, const bool &b) {
+    auto flags = os.setf(std::ios::boolalpha);
+    os << b;
+    os.setf(flags);
+  }
 };
+
+/// Pretty booleans reader
 template <> struct PrettyReader<bool, void> {
-    bool operator() (std::istream &is, bool &b) {
-        auto flags = is.setf(std::ios::boolalpha);
-        is >> b;
-        is.setf(flags);
-        return bool(is);
-    }
+  /// \copydoc PrettyReader
+  bool operator() (std::istream &is, bool &b) {
+    auto flags = is.setf(std::ios::boolalpha);
+    is >> b;
+    is.setf(flags);
+    return bool(is);
+  }
 };
 
-// Safe strings =================================
 
+// =============================================================================
+/// Safe strings writer
 template <> struct PrettyWriter<std::string, void> {
-    void operator() (std::ostream &os, const std::string &s) {
-        os << "\"" << s << "\"";
-    }
+  /// \copydoc PrettyWriter
+  void operator() (std::ostream &os, const std::string &s) {
+    os << "\"" << s << "\"";
+  }
 };
+
+/// Safe strings reader
 template <> struct PrettyReader<std::string, void> {
-    bool operator() (std::istream &is, std::string &s) {
-        bool ok = bool(std::getline(is, s));
-        s = utils::unquote(s);
-        return ok && bool(is);
-    }
+  /// \copydoc PrettyReader
+  bool operator() (std::istream &is, std::string &s) {
+    bool ok = bool(std::getline(is, s));
+    s = utils::unquote(s);
+    return ok && bool(is);
+  }
 };
 
-// Pretty sets ==================================
 
+// =============================================================================
+/// Pretty sets writer
 template <typename V, typename C>
 struct PrettyWriter<std::set<V,C>> {
-    void operator() (std::ostream &os, const std::set<V,C> &set) {
-        PrettyWriter<V> printer;
-        for (const V &v: set) {
-            printer(os, v);
-            os << " ";
-        }
+  /// \copydoc PrettyWriter
+  void operator() (std::ostream &os, const std::set<V,C> &set) {
+    PrettyWriter<V> printer;
+    for (const V &v: set) {
+      printer(os, v);
+      os << " ";
     }
+  }
 };
 
+/// Pretty sets reader
 template <typename V, typename C>
 struct PrettyReader<std::set<V,C>> {
-    bool operator() (std::istream &is, std::set<V,C> &set) {
-        PrettyReader<V> reader;
-        V value;
+  /// \copydoc PrettyReader
+  bool operator() (std::istream &is, std::set<V,C> &set) {
+    PrettyReader<V> reader;
+    V value;
 
-        while (reader(is, value))   set.insert(value);
+    while (reader(is, value))   set.insert(value);
 
-        if (is.eof() && is.fail())  is.clear();
-        return (bool)is;
-    }
+    if (is.eof() && is.fail())  is.clear();
+    return (bool)is;
+  }
 };
 
 
-// Pretty maps ==================================
-
+// =============================================================================
+/// Pretty maps writer
 template <typename K, typename V>
 struct PrettyWriter<std::map<K,V>> {
-    void operator() (std::ostream &os, const std::map<K,V> &map) {
-        PrettyWriter<K> keyPrinter;
-        uint maxWidth = 0;
-        for (auto &p: map) {
-            std::ostringstream oss;
-            keyPrinter(oss, p.first);
-            uint width = oss.str().length();
-            if (width > maxWidth)
-                maxWidth = width;
-        }
-        os << "map(" << utils::className<K>() << ", " << utils::className<V>() << ")\n";
-        for (auto &p: map) {
-            std::ostringstream oss;
-            keyPrinter(oss, p.first);
-            std::string key = oss.str();
-            os << "    " << std::string(maxWidth-key.length(), ' ') << key << ": ";
-            PrettyWriter<V>()(os, p.second);
-            os << "\n";
-        }
+  /// \copydoc PrettyWriter
+  void operator() (std::ostream &os, const std::map<K,V> &map) {
+    PrettyWriter<K> keyPrinter;
+    uint maxWidth = 0;
+    for (auto &p: map) {
+      std::ostringstream oss;
+      keyPrinter(oss, p.first);
+      uint width = oss.str().length();
+      if (width > maxWidth)
+        maxWidth = width;
     }
+    os << "map(" << utils::className<K>() << ", " << utils::className<V>() << ")\n";
+    for (auto &p: map) {
+      std::ostringstream oss;
+      keyPrinter(oss, p.first);
+      std::string key = oss.str();
+      os << "    " << std::string(maxWidth-key.length(), ' ') << key << ": ";
+      PrettyWriter<V>()(os, p.second);
+      os << "\n";
+    }
+  }
 };
 
+/// Pretty maps reader
 template <typename K, typename V>
 struct PrettyReader<std::map<K,V>> {
-    bool operator() (std::istream &is, std::map<K,V> &map) {
-        static const std::regex regKeyValue = std::regex("[[:space:]]*([^[:space:]][^:]*): (.*)");
-        std::smatch matches;
+  /// \copydoc PrettyReader
+  bool operator() (std::istream &is, std::map<K,V> &map) {
+    static const std::regex regKeyValue =
+        std::regex("[[:space:]]*([^[:space:]][^:]*): (.*)");
 
-        std::string line;
-        while (getline(is, line)) {
-            if (line.size() == 0) continue;
+    std::smatch matches;
 
-            if (std::regex_match(line, matches, regKeyValue)) {
-                std::istringstream isskey = std::istringstream (matches[1]),
-                                   issval = std::istringstream (matches[2]);
-                K key;
-                V value;
-                PrettyReader<K>()(isskey, key);
-                PrettyReader<V>()(issval, value);
+    std::string line;
+    while (getline(is, line)) {
+      if (line.size() == 0) continue;
 
-                map[key] = value;
-            }
-        }
-        if (is.eof() && is.fail())  is.clear();
-        return (bool)is;
+      if (std::regex_match(line, matches, regKeyValue)) {
+        std::istringstream isskey = std::istringstream (matches[1]),
+                           issval = std::istringstream (matches[2]);
+        K key;
+        V value;
+        PrettyReader<K>()(isskey, key);
+        PrettyReader<V>()(issval, value);
+
+        map[key] = value;
+      }
     }
+    if (is.eof() && is.fail())  is.clear();
+    return (bool)is;
+  }
 };
 
 #endif // _PRETTY_STREAMERS_HPP_
