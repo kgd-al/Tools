@@ -53,16 +53,28 @@ target_link_libraries(tools ${FS_LIB})
 ## Make documentation
 ####################################################################################################
 
-cmake_policy(SET CMP0057 NEW)
-find_package(Doxygen REQUIRED dot)
+option(GENERATE_HELP "Whether or not to build the help through doxygen" OFF)
+message(STATUS "Help generation is " ${GENERATE_HELP})
 
-set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/docs")
-set(DOXYGEN_GENERATE_TAGFILE "${DOXYGEN_OUTPUT_DIRECTORY}/tools.tag")
+if (GENERATE_HELP)
+    cmake_policy(SET CMP0057 NEW)
+    find_package(Doxygen REQUIRED dot)
 
-set(DOXYGEN_ENABLED_SECTIONS "internal")
-set(DOXYGEN_EXTRACT_PRIVATE YES)
+    set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/docs")
 
-doxygen_add_docs(docs ${SOURCES} COMMENT "Generating documentation")
+    # Qt help
+    set(DOXYGEN_GENERATE_QHP YES)
+    set(DOXYGEN_QCH_FILE "../tools.qch")
+    set(DOXYGEN_QHP_NAMESPACE "kgd.tools")
+    set(DOXYGEN_QHP_VIRTUAL_FOLDER "kgd_docs")
+    set(DOXYGEN_QHG_LOCATION "qhelpgenerator")
+
+    # Debugging
+    set(DOXYGEN_ENABLED_SECTIONS "internal")
+    set(DOXYGEN_EXTRACT_PRIVATE YES)
+
+    doxygen_add_docs(docs ${SOURCES} COMMENT "Generating documentation")
+endif()
 
 
 ####################################################################################################
@@ -85,10 +97,12 @@ install(
             GROUP_EXECUTE GROUP_READ
 )
 
-install(
-    DIRECTORY "${CMAKE_SOURCE_DIR}/docs"
-    DESTINATION docs/tools
-)
+if (GENERATE_HELP)
+    install(
+        DIRECTORY "${CMAKE_SOURCE_DIR}/docs/"
+        DESTINATION docs/tools
+    )
+endif()
 
 set(CONFIG "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake")
 file(GENERATE
@@ -100,8 +114,6 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include/)
 
 set(${PROJECT_NAME}_LIBRARIES
     ${FS_LIB}
-    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)
-
-set(${PROJECT_NAME}_DOXYGEN ${CMAKE_INSTALL_PREFIX}/docs/tools/tools.tag)\n"
+    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)\n"
 )
 install(FILES ${CONFIG} DESTINATION cmake)
