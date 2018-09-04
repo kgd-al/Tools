@@ -73,7 +73,8 @@ struct MutationSettings {
     }
 
     /// Mutates the integer \p v according to the absolute bounds
-    std::enable_if_t<std::is_integral<T>::value, void>
+    template <typename U=T>
+    std::enable_if_t<std::is_integral<U>::value, void>
     mutate (O &o, rng::AbstractDice &dice) const {
       T &v = o.*field;
       assert(min <= v && v <= max);
@@ -86,9 +87,10 @@ struct MutationSettings {
     static constexpr double __MUTATE_SCALAR_MAGIC_BULLET = 1e-2;
 
     /// Mutates the decimal \p v according to the absolute bounds
-    std::enable_if_t<std::is_floating_point<T>::value, void>
+    template <typename U=T>
+    std::enable_if_t<std::is_floating_point<U>::value, void>
     mutate (O &o, rng::AbstractDice &dice) const {
-      T &v = o.*field;
+      U &v = o.*field;
       assert(min <= v && v <= max);
       if (min < max) {
         rng::tndist dist (0, span() * __MUTATE_SCALAR_MAGIC_BULLET, min - v, max - v, true);

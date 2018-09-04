@@ -41,15 +41,19 @@ std::true_type is_complete_impl(T *);
 /// Default type denoting a declared but undefined type
 std::false_type is_complete_impl(...);
 
+/// \cond deepmagic
+namespace deepmagic {
 template <typename>
 struct EnumMetaData;
+}
+/// \endcond
 
 /// Helper type to check if a type is an enumeration with associated metadata
 template <class T>
 struct is_pretty_enum {
   /// Whether or not type \p T has enumeration metadata
   static constexpr bool value =
-      decltype(is_complete_impl(std::declval<EnumMetaData<T>*>()))::value;
+      decltype(is_complete_impl(std::declval<deepmagic::EnumMetaData<T>*>()))::value;
 };
 
 /// \return the number of comma-separated values in \p s
@@ -104,7 +108,7 @@ template<typename E> struct make_index_sequence<E, 1> : iseq<E, E(0)> { };
 template <typename E> class EnumUtils {
 
   /// Alias for the associated metadata
-  using MetaData = _details::EnumMetaData<E>;
+  using MetaData = _details::deepmagic::EnumMetaData<E>;
 
   /// Extract the values for the enumeration described in the MetaData type and populates the
   /// various lists
