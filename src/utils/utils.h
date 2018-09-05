@@ -84,6 +84,9 @@ std::string unscopedClassName (void) {
   else    return name;
 }
 
+// =============================================================================
+// == Personnal type traits
+
 /// \brief Tests whether or not \p T can be called with these arguments
 template<class T, class...Args>
 struct is_callable {
@@ -95,6 +98,59 @@ struct is_callable {
   /// Whether or not \p T can be called with these arguments
   static constexpr bool value = decltype(test<T>(0))::value;
 };
+
+/// \brief Tests whether \p T has the same signature as an STL container
+///
+/// Credit goes to Mike Kinghan \@https://stackoverflow.com/a/16316640
+template<typename T>
+struct is_stl_container_like {
+  /// \cond deepmagic
+  typedef typename std::remove_const<T>::type test_type;
+
+  template<typename A>
+  static constexpr bool test(
+    A * pt,
+    A const * cpt = nullptr,
+    decltype(pt->begin()) * = nullptr,
+    decltype(pt->end()) * = nullptr,
+    decltype(cpt->begin()) * = nullptr,
+    decltype(cpt->end()) * = nullptr,
+    typename A::iterator * pi = nullptr,
+    typename A::const_iterator * pci = nullptr,
+    typename A::value_type * pv = nullptr) {
+
+    typedef typename A::iterator iterator;
+    typedef typename A::const_iterator const_iterator;
+    typedef typename A::value_type value_type;
+    return  std::is_same<decltype(pt->begin()),iterator>::value &&
+            std::is_same<decltype(pt->end()),iterator>::value &&
+            std::is_same<decltype(cpt->begin()),const_iterator>::value &&
+            std::is_same<decltype(cpt->end()),const_iterator>::value &&
+            std::is_same<decltype(**pi),value_type &>::value &&
+            std::is_same<decltype(**pci),value_type const &>::value;
+  }
+
+  template<typename A>
+  static constexpr bool test(...) { return false; }
+
+  static const bool value = test<test_type>(nullptr);
+  /// \endcond
+};
+
+template<class T>
+struct is_cpp_array : std::false_type {};
+
+template<class T>
+struct is_cpp_array<T[]> : std::true_type {};
+
+template<class T, std::size_t N>
+struct is_cpp_array<T[N]> : std::true_type {};
+
+template <class T, std::size_t N>
+struct is_cpp_array<std::array<T,N>> : std::true_type {};
+
+// =============================================================================
+// == Stream operators
 
 /// Stream values from a std::array<...>
 template <typename T, size_t SIZE>
@@ -113,7 +169,7 @@ std::istream& operator>> (std::istream &is, std::array<T, SIZE> &a) {
   return is;
 }
 
-/// Stream values from a std::pair<...?
+/// Stream values from a std::pair<...>
 template <typename T1, typename T2>
 std::ostream& operator<< (std::ostream &os, const std::pair<T1, T2> &p) {
   return os << "{" << p.first << "," << p.second << "}";

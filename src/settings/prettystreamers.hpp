@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 
+#include "../utils/utils.h"
 #include "../random/dice.hpp"
 #include "prettyenums.hpp"
 

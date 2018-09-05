@@ -3,7 +3,10 @@
 
 #include <cassert>
 
+#include <type_traits>
 #include <random>
+
+namespace config {
 
 /*!
  *\file mutationbounds.hpp
@@ -67,9 +70,21 @@ struct MutationSettings {
 
     /// \return a value in the initial range
     /// \tparam RNG Probably a dice \see rng::AbstractDice
-    template <typename RNG>
-    T rand (RNG &rng) const {
+    template <typename RNG, typename U=T>
+    std::enable_if_t<std::is_fundamental<U>::value, U>
+    rand (RNG &rng) const {
       return rng(rndMin, rndMax);
+    }
+
+    /// \return a value in the initial, multidimensional, range
+    /// \tparam RNG Probably a dice \see rng::AbstractDice
+    template <typename RNG, typename U=T>
+    std::enable_if_t<utils::is_cpp_array<U>::value, U>
+    rand (RNG &rng) const {
+      U tmp;
+      for (uint i=0; i<rndMin.size(); ++i)
+        tmp[i] = rng(rndMin[i], rndMax[i]);
+      return tmp;
     }
 
     /// Mutates the integer \p v according to the absolute bounds
@@ -100,11 +115,13 @@ struct MutationSettings {
 
     /// Streams a simple, space-delimited, representation
     friend std::ostream& operator<< (std::ostream& os, const Bounds &b) {
+      using utils::operator<<;
       return os << "(" << b.min << " " << b.rndMin << " " << b.rndMax << " " << b.max << ")";
     }
 
     /// Reads data from a simple, space-delimited, representation
     friend std::istream& operator>> (std::istream& is, Bounds &b) {
+      using utils::operator>>;
       char junk;
       is >> junk >> b.min >> b.rndMin >> b.rndMax >> b.max >> junk;
       return is;
@@ -116,5 +133,7 @@ struct MutationSettings {
   template <typename ENUM>
   using MutationRates = std::map<ENUM, float>;
 };
+
+} // end of namespace config
 
 #endif

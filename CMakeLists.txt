@@ -32,14 +32,19 @@ endif()
 ####################################################################################################
 
 set(SOURCES
-    "src/utils/utils.cpp"
-    "src/settings/configfile.cpp"
-    "src/utils/utils.h"
-    "src/settings/prettystreamers.hpp"
-    "src/settings/prettyenums.hpp"
-    "src/settings/configfile.h"
-    "src/settings/mutationbounds.hpp"
+#    "src/genotype/selfawaregenome.h"
+#    "src/genotype/selfawaregenome.cpp"
+
     "src/random/dice.hpp"
+
+    "src/settings/configfile.h"
+    "src/settings/configfile.cpp"
+    "src/settings/mutationbounds.hpp"
+    "src/settings/prettyenums.hpp"
+    "src/settings/prettystreamers.hpp"
+
+    "src/utils/utils.h"
+    "src/utils/utils.cpp"
 )
 set (EXTERNALS
     "src/external/cxxopts.hpp"
@@ -47,6 +52,34 @@ set (EXTERNALS
 )
 add_library(tools STATIC ${SOURCES} ${EXTERNALS})
 target_link_libraries(tools ${FS_LIB})
+
+
+
+
+# Test area
+add_executable(
+    sag-test
+    "src/genotype/selfawaregenome.h"
+    "src/genotype/selfawaregenome.cpp"
+)
+target_link_libraries(sag-test tools)
+
+
+####################################################################################################
+## Options
+####################################################################################################
+
+option(WITH_DEBUG_INFO "Sets whether to maximize debug data collection" OFF)
+message(STATUS "With debug info " ${WITH_DEBUG_INFO})
+if(WITH_DEBUG_INFO)
+    add_definitions(-DWITH_DEBUG_INFO)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g") # Enable debug info
+
+    # Enable small memory error detector (fuse=gold fixes linker errors)
+#    set(ASAN "-fsanitize=thread")
+    set(ASAN "-fsanitize=address -fsanitize=undefined")
+    set(CMAKE_CXX_FLAGS "${ASAN} -fno-omit-frame-pointer -fuse-ld=gold ${CMAKE_CXX_FLAGS}")
+endif()
 
 
 ####################################################################################################
