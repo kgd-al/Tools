@@ -109,13 +109,31 @@ struct MutationSettings {
       mutate(v, min, max, dice);
     }
 
-    /// Mutates the multidimensional \p v according to the absolute bounds
+    /// Mutates a single value in the multidimensional \p v
+    /// according to the absolute bounds
     template <typename U=T>
     std::enable_if_t<utils::is_cpp_array<U>::value, void>
     mutate (U &a, rng::AbstractDice &dice) const {
+      uint i = dice(0ul, a.size());
+      mutate(a[i], min[i], max[i], dice);
+    }
+
+    /// Checks that \p v is inside the absolute bounds
+    template <typename U=T>
+    std::enable_if_t<std::is_fundamental<U>::value, bool>
+    check (U &v) const {
+      return check(v, min, max);
+    }
+
+    /// Checks that each value in \p a is inside the absolute bounds
+    template <typename U=T>
+    std::enable_if_t<utils::is_cpp_array<U>::value, bool>
+    check (U &a) const {
       uint i = 0;
+      bool ok = true;
       for (auto &v: a)
-        mutate(v, min[i], max[i], dice), i++;
+        ok &= check(v, min[i], max[i]), i++;
+      return ok;
     }
 
     /// Streams a simple, space-delimited, representation
@@ -155,6 +173,16 @@ struct MutationSettings {
         rng::tndist dist (0, (max - min) * __MAGIC_BULLET, min - v, max - v, true);
         v += dice(dist);
       }
+    }
+
+    /// \returns whether \p v is in range [min, max]
+    template <typename U=T>
+    std::enable_if_t<std::is_fundamental<U>::value, bool>
+    static check (U &v, const U min, const U max) {
+      bool ok = true;
+      if (v < min)  v = min,  ok &= false;
+      if (max < v)  v = max,  ok &= false;
+      return ok;
     }
   };
 

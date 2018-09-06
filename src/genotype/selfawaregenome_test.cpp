@@ -1,19 +1,6 @@
 #include <iostream>
 
-#include "selfawaregenome.h"
-
-namespace genotype {
-
-namespace _details {
-
-SelfAwareGenome_base::SelfAwareGenome_base() {
-
-}
-
-} // end of namespace _details
-
-} // end of namespace genotype
-
+#include "selfawaregenome.hpp"
 
 // =============================================================================
 // == Test area
@@ -23,12 +10,7 @@ namespace config {
 struct Test;
 }
 
-/// Allowed bounds-driven types:
-///   - All primitive/fundamentals (int, float, uint, ...)
-///   - std::array and other fixed size container (e.g. NOT std::vector)
-///
-/// Allowed functor-controlled types:
-///   - Everything for with you (the end-user) can write the necessary functions
+// =============================================================================
 // genome.h
 namespace genotype {
 class SELF_AWARE_GENOME(Test) {
@@ -43,6 +25,7 @@ public:
 }
 // end of genome.h
 
+// =============================================================================
 // genomeconfig.h
 namespace config {
 #define CFILE Test
@@ -62,44 +45,56 @@ struct CFILE : public ConfigFile<CFILE> {
 }
 // end of genomeconfig.h
 
+// =============================================================================
 // genome.cpp
-//namespace genotype {
 #define GENOME Test
 #define CFILE config::GENOME
 DEFINE_GENOME_FIELD_WITH_BOUNDS(int, intField, 1, 2, 3, 4)
 
-struct FloatFunctor {
-  using Dice = rng::AbstractDice;
-  static constexpr auto random =
-      [] (Dice &dice) { return dice(-1.f, 1.f); };
+static const auto floatFunctor = [] {
+  GENOME_FIELD_FUNCTOR(float, floatField) functor {};
+  functor.random =
+      [] (auto &dice) { return dice(-1.f, 1.f); };
 
-  static constexpr auto mutate =
-      [] (float &f, Dice &dice) { f += dice(-1.f, 1.f); };
+  functor.mutate =
+      [] (float &f, auto &dice) { f += dice(-1.f, 1.f); };
 
-  static constexpr auto cross =
-      [] (const float &lf, const float &rf, Dice &dice) { return dice.toss(lf, rf); };
+  functor.cross =
+      [] (const float &lf, const float &rf, auto &dice) {
+        return dice.toss(lf, rf);
+      };
 
-  static constexpr auto distance =
+  functor.distance =
       [] (const float &lf, const float &rf) { return fabs(lf - rf); };
+
+  functor.check =
+      [] (float &lf) {
+        bool ok = true;
+        if (lf < 0) lf = 0, ok &= false;
+        if (1 < lf) lf = 1, ok &= false;
+        return ok;
+      };
+
+  return functor;
 };
-DEFINE_GENOME_FIELD_WITH_FUNCTOR(float, floatField, FloatFunctor())
+DEFINE_GENOME_FIELD_WITH_FUNCTOR(float, floatField, floatFunctor())
 
 using A = genotype::GENOME::A;
 DEFINE_GENOME_FIELD_WITH_BOUNDS(A, arrayField, A{-10,0}, A{0,10})
 
-DEFINE_GENOME_MUTATION_RATES(/*std::initializer_list<std::pair<const genotype::_details::GenomeField_base<genotype::GENOME>*,float>>*/{
-  /*std::pair<const genotype::_details::GenomeField_base<genotype::GENOME>*,float>(*/MUTATION_RATE(  intField, 2.f )/*)*/,
+DEFINE_GENOME_MUTATION_RATES({
+  MUTATION_RATE(  intField, 2.f ),
   MUTATION_RATE(floatField, 1.f ),
   MUTATION_RATE(arrayField, 4.f ),
 })
 
 #undef CFILE
 #undef GENOME
-//}
 // end of genome.cpp
 
 
-
+// =============================================================================
+// == Possible use cases
 int main (void) {
   using Genome = genotype::Test;
 
@@ -113,6 +108,7 @@ int main (void) {
   g0.arrayField = {4,2};
   g0.vectorField = {4,2};
   std::cout << "\nModified g0:\n" << g0 << std::endl;
+  std::cout << "\nis g0 valid? " << g0.check() << std::endl;
 
   rng::FastDice dice;
   Genome g1 = Genome::random(dice);

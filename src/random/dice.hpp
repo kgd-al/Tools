@@ -95,7 +95,22 @@ typedef std::uniform_int_distribution<int> usdist; ///< Alias for a signed unifo
 typedef std::normal_distribution<double> ndist; ///< Alias for a decimal normal distribution
 typedef truncated_normal_distribution<double> tndist; ///< Alias for a decimal truncated normal distribution
 typedef std::bernoulli_distribution bdist;  ///< Alias for a coin flip distribution
-typedef std::discrete_distribution<uint> rdist;   ///< Alias for a roulette distribution
+
+/// Non-empty roulette distribution
+struct rdist : public std::discrete_distribution<uint> {
+  /// \cond internal
+
+  /// Builds a roulette distribution and asserts that the input data was not empty
+  template <typename InputIt>
+  rdist(InputIt first, InputIt last)
+    : std::discrete_distribution<uint>(first, last) {
+    if (!(std::distance(first, last) > 0))
+      throw std::out_of_range("Cannot create roulette distribution with empty range");
+  }
+
+  /// \endcond
+};
+
 
 // ===================================================================================
 
@@ -244,10 +259,14 @@ public:
   /// \return A value T taken at a random position in the map according to discrete distribution
   /// described in its values
   /// \tparam T a copyable type
+  /// \attention The map shall NOT be empty
   template <typename T>
   T pickOne (const std::map<T, float> &map) {
     std::vector<T> keys;
     std::vector<float> values;
+
+    if (map.empty())
+      throw std::invalid_argument("Cannot pick a random value from an empty map");
 
     keys.reserve(map.size());
     values.reserve(map.size());

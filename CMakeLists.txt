@@ -32,7 +32,7 @@ endif()
 ####################################################################################################
 
 set(SOURCES
-#    "src/genotype/selfawaregenome.h"
+    "src/genotype/selfawaregenome.hpp"
 #    "src/genotype/selfawaregenome.cpp"
 
     "src/random/dice.hpp"
@@ -54,20 +54,21 @@ add_library(tools STATIC ${SOURCES} ${EXTERNALS})
 target_link_libraries(tools ${FS_LIB})
 
 
-
-
-# Test area
-add_executable(
-    sag-test
-    "src/genotype/selfawaregenome.h"
-    "src/genotype/selfawaregenome.cpp"
-)
-target_link_libraries(sag-test tools)
+if (BUILD_TESTS)
+    # Test self-aware genomes
+    add_executable(
+        sag-test
+        "src/genotype/selfawaregenome_test.cpp"
+    )
+    target_link_libraries(sag-test tools)
+endif()
 
 
 ####################################################################################################
 ## Options
 ####################################################################################################
+
+message(STATUS "")
 
 option(WITH_DEBUG_INFO "Sets whether to maximize debug data collection" OFF)
 message(STATUS "With debug info " ${WITH_DEBUG_INFO})
@@ -81,6 +82,8 @@ if(WITH_DEBUG_INFO)
     set(CMAKE_CXX_FLAGS "${ASAN} -fno-omit-frame-pointer -fuse-ld=gold ${CMAKE_CXX_FLAGS}")
 endif()
 
+option(BUILD_TESTS "Sets whether to build the tests executables" OFF)
+message(STATUS "Build tests " ${BUILD_TESTS})
 
 ####################################################################################################
 ## Make documentation
@@ -103,8 +106,11 @@ if (GENERATE_HELP)
     set(DOXYGEN_QHG_LOCATION "qhelpgenerator")
 
     # Debugging
-    set(DOXYGEN_ENABLED_SECTIONS "internal")
-    set(DOXYGEN_EXTRACT_PRIVATE YES)
+    if (CMAKE_BUILD_TYPE MATCHES Debug)
+        message(STATUS "Enabling full documentation")
+        set(DOXYGEN_ENABLED_SECTIONS "internal")
+        set(DOXYGEN_EXTRACT_PRIVATE YES)
+    endif()
 
     doxygen_add_docs(docs ${SOURCES} COMMENT "Generating documentation")
 endif()
