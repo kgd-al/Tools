@@ -17,19 +17,10 @@ namespace config {
 /// Provide handy types for mutation bounds definition
 struct MutationSettings {
 
-  /// Mutation bounds for a specific field
+  /// Mutation bounds for a specific genomic field
   /// \tparam T a primitive type (int, float, ...)
-  /// \tparam O the object containing this field
-  /// \tparam FIELD the field offset
   template <typename T, typename O>
-  class Bounds {
-    /// The field type for these bounds
-    using Field = T O::*;
-
-    /// The offset to the managed field
-    Field field;
-
-  public:
+  struct Bounds {
     /// Minimal value reachable through random initialisation/mutation
     T min;
 
@@ -43,29 +34,52 @@ struct MutationSettings {
     T max;
 
     /// Use provided bounds a absolute minimal, initial minimal, initial maximal, absolute maximal
-    Bounds (Field f, T min, T rndMin, T rndMax, T max)
-      : field(f), min(min), rndMin(rndMin), rndMax(rndMax), max(max) {
+    Bounds (T min, T rndMin, T rndMax, T max)
+      : min(min), rndMin(rndMin), rndMax(rndMax), max(max) {
       assert(min <= rndMin && rndMin <= rndMax && rndMax <= max);
     }
 
     /// No difference between absolute and initial extremums
-    Bounds (Field f, T min, T max) : Bounds(f, min, min, max, max) {}
+    Bounds (T min, T max) : Bounds(min, min, max, max) {}
 
     /// Different absolute and initial minimals. Identical for maximal.
-    Bounds (Field f, T min, T rndMin, bool, T max) : Bounds(f, min, rndMin, max, max) {}
+    Bounds (T min, T rndMin, bool, T max) : Bounds(min, rndMin, max, max) {}
 
     /// Different absolute and initial maximals. Identical for minimal.
-    Bounds (Field f, T min, bool, T rndMax, T max) : Bounds(f, min, min, rndMax, max) {}
+    Bounds (T min, bool, T rndMax, T max) : Bounds(min, min, rndMax, max) {}
 
     /// \return the range of valid values for these bounds
-    double span (void) const {
+    template <typename U=T>
+    std::enable_if_t<std::is_fundamental<U>::value, double>
+    span (void) const {
       return double(max) - double(min);
+    }
+
+    /// \return the range of valid values for these bounds
+    template <typename U=T>
+    std::enable_if_t<utils::is_cpp_array<U>::value, double>
+    span (uint i) const {
+      return double(max[i]) - double(min[i]);
     }
 
     /// \return the absolute distance for \p field between \p lhs and \p rhs
     /// scaled by the maximal span for this field
-    double distance (const O &lhs, const O &rhs) const {
-      return fabs(lhs.*field - rhs.*field) / span();
+    template <typename U=T>
+    std::enable_if_t<std::is_fundamental<U>::value, double>
+    distance (const U &lhs, const U &rhs) const {
+      return fabs(lhs - rhs) / span();
+    }
+
+    /// \return the absolute distance for multidimensional field between \p lhs
+    /// and \p rhs scaled by the maximal span for this field
+    template <typename U=T>
+    std::enable_if_t<utils::is_cpp_array<U>::value, double>
+    distance (const U &lhs, const U &rhs) const {
+      double d = 0;
+      uint i = 0;
+      for (auto &v: lhs)
+        d += fabs(lhs[i] - rhs[i]) / span(i), i++, (void)v;
+      return d / i;
     }
 
     /// \return a value in the initial range
@@ -82,35 +96,26 @@ struct MutationSettings {
     std::enable_if_t<utils::is_cpp_array<U>::value, U>
     rand (RNG &rng) const {
       U tmp;
-      for (uint i=0; i<rndMin.size(); ++i)
-        tmp[i] = rng(rndMin[i], rndMax[i]);
+      uint i = 0;
+      for (auto &v: tmp)
+        v = rng(rndMin[i], rndMax[i]), i++;
       return tmp;
     }
 
-    /// Mutates the integer \p v according to the absolute bounds
+    /// Mutates the \p v according to the absolute bounds
     template <typename U=T>
-    std::enable_if_t<std::is_integral<U>::value, void>
-    mutate (O &o, rng::AbstractDice &dice) const {
-      T &v = o.*field;
-      assert(min <= v && v <= max);
-      if (v == min)         v = min + 1;
-      else if (v == max)    v = max - 1;
-      else                  v += dice(.5)? -1 : 1;
+    std::enable_if_t<std::is_fundamental<U>::value, void>
+    mutate (U &v, rng::AbstractDice &dice) const {
+      mutate(v, min, max, dice);
     }
 
-    /// Constant defining the scale of variation a decimal can expect
-    static constexpr double __MUTATE_SCALAR_MAGIC_BULLET = 1e-2;
-
-    /// Mutates the decimal \p v according to the absolute bounds
+    /// Mutates the multidimensional \p v according to the absolute bounds
     template <typename U=T>
-    std::enable_if_t<std::is_floating_point<U>::value, void>
-    mutate (O &o, rng::AbstractDice &dice) const {
-      U &v = o.*field;
-      assert(min <= v && v <= max);
-      if (min < max) {
-        rng::tndist dist (0, span() * __MUTATE_SCALAR_MAGIC_BULLET, min - v, max - v, true);
-        v += dice(dist);
-      }
+    std::enable_if_t<utils::is_cpp_array<U>::value, void>
+    mutate (U &a, rng::AbstractDice &dice) const {
+      uint i = 0;
+      for (auto &v: a)
+        mutate(v, min[i], max[i], dice), i++;
     }
 
     /// Streams a simple, space-delimited, representation
@@ -127,11 +132,34 @@ struct MutationSettings {
       return is;
     }
 
+  private:
+
+    /// Mutates the integer \p v according to the absolute bounds
+    template <typename U=T>
+    static std::enable_if_t<std::is_integral<U>::value, void>
+    mutate (U &v, const U min, const U max, rng::AbstractDice &dice) {
+      assert(min <= v && v <= max);
+      if (v == min)         v = min + 1;
+      else if (v == max)    v = max - 1;
+      else                  v += dice(.5)? -1 : 1;
+    }
+
+    /// Mutates the decimal \p v according to the absolute bounds
+    template <typename U=T>
+    static std::enable_if_t<std::is_floating_point<U>::value, void>
+    mutate (U &v, const U min, const U max, rng::AbstractDice &dice) {
+      static constexpr double __MAGIC_BULLET = 1e-2;
+
+      assert(min <= v && v <= max);
+      if (min < max) {
+        rng::tndist dist (0, (max - min) * __MAGIC_BULLET, min - v, max - v, true);
+        v += dice(dist);
+      }
+    }
   };
 
   /// Another alias type for shorter configuration files
-  template <typename ENUM>
-  using MutationRates = std::map<ENUM, float>;
+  using MutationRates = std::map<std::string, float>;
 };
 
 } // end of namespace config
