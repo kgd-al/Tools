@@ -1,3 +1,8 @@
+*.aux
+*.log
+*.pdf
+*.synctex.gz
 *.user
+
 build*
 docs/

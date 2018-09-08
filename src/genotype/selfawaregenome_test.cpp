@@ -160,10 +160,15 @@ struct SAG_CONFIG_FILE(genotype::External) {
   using A = std::array<float,2>;
 
   DECLARE_PARAMETER(B<int>, intFieldBounds)
-  DECLARE_PARAMETER(B<std::vector<float>>, vectorFieldBounds)
   DECLARE_PARAMETER(B<A>, arrayFieldBounds)
 
-//  DECLARE_PARAMETER(M, mutationRates)
+  /// \todo Change to vector of trivial
+  DECLARE_PARAMETER(B<std::vector<float>>, vectorFieldBounds)
+
+  /// \todo Add complex
+  /// \todo Add Crossover management
+
+  DECLARE_PARAMETER(M, mutationRates)
 };
 } // end of namespace config
 // end of genomeconfig.h

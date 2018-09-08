@@ -1,16 +1,27 @@
 \documentclass{standalone}
-\usepackage{dot2texi}
+\usepackage[T1]{fontenc}
 \usepackage{tikz}
-\usetikzlibrary{shapes,arrows}
-\usepackage{array}
+\usetikzlibrary{arrows}
+\usepackage{array,collcell,multirow}
 \usepackage{listings}
+\lstset{
+    escapeinside={(*@}{@*)},          % if you want to add LaTeX within your code
+}
 \begin{document}
+\newcommand{\anchor}[1]{
+\tikz [overlay, remember picture, baseline={([yshift=-.7ex]current bounding box.center)}] \node (#1) {[$#1$]};
+}
 \begin{tabular}{l}
+  \hfill \Large \textbf{Breakdown of validity management through multiple dependencies} \hfill
+  \vspace{1cm}\\
+  
+  \hfil \large \textit{Genome implementation} \hfill\\
+  
   genome.h \\
   \begin{lstlisting}[mathescape]
-struct SELF_AWARE_GENOME(FOO) { [$G$]
+struct SELF_AWARE_GENOME(FOO) {   (*@ \anchor{G} @*)
   ...
-  DECLARE_FIELD(BAR)            [$G^h_i$]
+  DECLARE_FIELD(BAR)              (*@ \anchor{G^h_i} @*)
   ...  
 }
   \end{lstlisting} \\
@@ -19,11 +30,11 @@ struct SELF_AWARE_GENOME(FOO) { [$G$]
   genome.cpp \\
   \begin{lstlisting}[mathescape]
 ...
-DEFINE(BAR)                     [$G^c_i$]
+DEFINE(BAR)                       (*@ \anchor{G^c_i} @*)
 ...
-DEFINE_RATE(                    [$G^R$]
+DEFINE_RATE(                      (*@ \anchor{G^R} @*)
   ...
-  {BAR,r}                       [$G^r_i$]
+  {BAR,r}                         (*@ \anchor{G^r_i} @*)
   ...
 )
   \end{lstlisting} \\
@@ -31,66 +42,68 @@ DEFINE_RATE(                    [$G^R$]
   ========== \\
   genomeconfig.h \\
   \begin{lstlisting}[mathescape]
-struct SAG_CONFIG_FILE(FOO) {   [$C$]
+struct SAG_CONFIG_FILE(FOO) {     (*@ \anchor{C} @*)
   ...
-  DECLARE(BAR)                  [$C^h_i$]
+  DECLARE(BAR)                    (*@ \anchor{C^h_i} @*)
   ...
-  DECLARE_RATES(R)              [$C^R$]
+  DECLARE_RATES(R)                (*@ \anchor{C^R} @*)
 }
   \end{lstlisting} \\
 
-  \begin{dot2tex}[neato]
-  digraph G {
-    rankdir=LR;
-    
-    G [color=red];
-    G_hi [color=red, texlbl="$G^h_i$"];
-    G_ci [texlbl="$G^c_i$"];
-    
-    G_R [color=red, texlbl="$G^R$"];
-    G_ri [texlbl="$G^r_i$"];
-    
-    C [color=red];
-    C_R [color=red, texlbl="$C^R$"];
-    C_hi [color=red, texlbl="$C^h_i$"];
-    
-    G -> C [color=red];
-    C -> G [color=red];
-    C -> C_R [color=red];
-    
-    G -> G_R [color=red];
-    G_hi -> G [color=red];
-    G_hi -> G_ci;
-    G_ci -> G_hi;
-    G_ci -> G_ri;
-    G_ri -> G_R;
-    G_R -> C_R;
-    
-    C_hi -> C_R [color=red];
-    C_R -> C_hi [color=red];
-  }
-  \end{dot2tex}
-  \\
-  \begin{tabular}{>{$}c<{$}@{$\to$}>{$}c<{$}ll}
-    \multicolumn{2}{c}{Missing} & That is & Error (g++7.3)\\
-    \hline
-    G^c_i & G^h_i & Defining undeclared field
-    & BAR is not a member of FOO \\
-    
-    G^c_i & G^r_i & No mutation rate for a defined field
-    & No mutation rate defined for field BAR \\
-    
-    G^R & C^R   & Forgot to declare the mutation rates in the configuration file
-    & mutationRates is not a member of SAG\_CONFIG\_FILE(FOO) \\  
-    
-    G^r_i & G^R & - & - \\
-    
-    G^h_i & G^c_i & Field declared but not defined
-    & Undefined reference to \_BAR\_metadata \\
+  \hfil \large \textit{Constraints description and associated errors} \hfill\\
 
-    \multicolumn{4}{c}{\LARGE vvHEREvv} \\
-    G^h_i & G     & & ??? \\
+  \newcommand{\lbl}[3]{(#2) to node [circle,draw,fill=white, inner sep=1pt] {\tiny #1} (#3)}
+  \begin{tikzpicture} [remember picture, overlay, >=stealth']
+   \draw[->, bend left=45]  \lbl{1}{G}{C};
+   \draw[->, bend left=45]  \lbl{2}{G}{G^R};
+   \draw[->, bend left=45]  \lbl{3}{G^R}{C^R};
+   \draw[->, bend left=45]  \lbl{4}{C}{C^R};
+   \draw[->, bend left=45]  \lbl{5}{G^h_i.west}{G.west};
+   \draw[->, bend left=30]  \lbl{6}{G^h_i}{G^c_i};
+   \draw[->, bend left=45]  \lbl{7}{G^c_i}{G^h_i};
+   \draw[->, bend right=50] \lbl{8}{G^c_i}{G^r_i};
+   \draw[->, bend right=50] \lbl{9}{G^c_i}{C^h_i};
+  \end{tikzpicture}
+  \\
+  \newcommand{\myverb}[1]{\ttfamily\detokenize{#1}}
+  \begin{tabular}{c>{$}c<{$}@{ $\rightarrow$ }>{$}c<{$}lc>{\collectcell\myverb}l<{\endcollectcell}}
+    N & \multicolumn{2}{c}{Violated} & Problem & D$^1$ & Error (g++7.3)\\
+    \hline
     
+    1 & G     & C     & Missing associated configuration file
+    & C & use of incomplete type config_t \\
+    
+    2 & G     & G^R   & Undefined mutation rates
+    & L & undefined reference to ...SAGConfigFile<FOO>::_mutation_rates \\
+    
+    3 & G^R   & C^R   & \multirow{2}{*}{Forgot to declare the mutation rates in the configuration file}
+    & C & mutationRates is not a member of SAG_CONFIG_FILE(FOO) \\  
+
+    4 & C     & C^R   & & 
+    & C ...mutationRates is not a static data member of ...SAGConfigFile<FOO> \\
+    
+    5 & G^h_i & G     & Forgot macro for defining genome
+    & C & this_t was not declared in this scope \\
+        
+    6 & G^h_i & G^c_i & Field declared but not defined
+    & L & Undefined reference to _BAR_metadata \\
+    
+    7 & G^c_i & G^h_i & Defining undeclared field
+    & C & BAR is not a member of FOO \\
+    
+    8 & G^c_i & G^r_i & No mutation rate for a defined field
+    & R & No mutation rate defined for field BAR \\
+    
+    9 & G^c_i & C^h_i & Forgot associated configuration for bound-based field
+    & C & BARBounds is not a member of FOO::config_t \\
+  \end{tabular} \vspace{.5cm}\\
+  
+  \hline
+  $^1$: Dectection \\
+  \begin{tabular}{rl}
+    C & compile-time \\
+    L & linker stage \\
+    R & runtime
   \end{tabular}
 \end{tabular}
 \end{document}
