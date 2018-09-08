@@ -77,7 +77,6 @@ class GenomeField : public GenomeFieldInterface<O> {
 
   /// Helper alias to the base type
   using Base = GenomeFieldInterface<O>;
-  using Base::name;
 
 protected:
   /// \returns A reference to the associated field
@@ -112,7 +111,7 @@ public:
 
     T tmp = get(object);
     if (!checkPrivate(object)) {
-      std::cerr << "Out-of-range value for field " << name() << ": "
+      std::cerr << "Out-of-range value for field " << this->name() << ": "
                 << tmp << " clipped to " << get(object) << std::endl;
       return false;
     }
@@ -134,7 +133,6 @@ class GenomeFieldWithBounds : public GenomeField<T,O,OFFSET> {
   using Base = GenomeField<T,O,OFFSET>;
 
   using Base::get;
-//  using Base::name;
   using typename Base::Dice;
 
   /// Helper alias to the bounds type providing values for this field
@@ -221,6 +219,12 @@ public:
   template <typename R>
   GenomeFieldWithFunctor (const std::string &name, R &registry, Functor f)
     : GenomeField<T,O,OFFSET> (name, registry), _functor(f) {
+    checkFunctor(&Functor::random, "random");
+    checkFunctor(&Functor::mutate, "mutate");
+    checkFunctor(&Functor::cross, "cross");
+    checkFunctor(&Functor::distance, "distance");
+    checkFunctor(&Functor::check, "check");
+
     assert(_functor.random && _functor.mutate && _functor.cross
            && _functor.distance && _functor.check);
   }
@@ -242,19 +246,84 @@ public:
   }
 
 private:
+  /// Asserts that \p field in this objects functor is not null
+  /// \throws std::invalid_argument if it is
+  template <typename F>
+  void checkFunctor (F Functor::*field, const std::string &fieldName) {
+    if (!(_functor.*field))
+      throw std::invalid_argument("Provided functor." + fieldName
+                                  + " for auto-field " + this->name()
+                                  + " is null");
+  }
+
   bool checkPrivate (O &object) const override {
     return _functor.check(get(object));
   }
 };
 
+/// Helper type storing the various types used by the self aware genomes
+template <typename G>
+struct SAG_type_traits {
+  /// The base type for this genome's field managers
+  using value_t = _details::GenomeFieldInterface<G>;
+
+  /// Helper alias to the source of randomness
+  using Dice = typename value_t::Dice;
+
+  /// Type used as value in the iterator
+  using Iterator_value = std::reference_wrapper<value_t>;
+
+  /// Iterator type for all auto-managed fields
+  using Iterator = std::map<std::string, Iterator_value>;
+};
+
 /// Helper function for generating the mutation rates map from an initializer
-/// list of {field,rate}
-template <typename T>
-auto buildMap(std::initializer_list<std::pair<const T*,float>> &&l) {
+/// list of {field,rate}.
+/// Performs validity checks (though not that efficiently)
+/// \throws std::invalid_argument if a field is missing its mutation rate
+template <typename G, typename T = SAG_type_traits<G>>
+auto buildMap(const typename T::Iterator &it,
+              std::initializer_list<std::pair<const typename T::value_t*,float>> &&l) {
+
+  std::ostringstream oss;
+  oss << "Checking " << utils::className<G>() << ":\n";
+
+  bool ok = true;
+
+  // Collect all registered fields
+  std::set<typename T::Iterator::key_type> fNames;
+  for (const auto &p: it) fNames.insert(p.first);
+
+  // Check that the input only contains known field names
+  for (const auto &p: l) {
+    const auto &name = p.first->name();
+    auto i = it.find(name);
+    fNames.erase(name);
+    if (i == it.end())
+      oss << "\tInitializer list for mutation rates contains unknown value '"
+          << name << "'\n", ok = false;
+  }
+
+  // Check that no fields are left uninitialized
+  for (const auto &n: fNames)
+    oss << "\tNo mutation rate defined for field " << n << "\n", ok = false;
+
+  // Bail-out if errors were encountered
+  if (!ok)
+    throw std::invalid_argument(oss.str());
+
+  // Otherwise everything's good we can build the map
   std::map<std::string, float> map;
   for (auto &p: l)  map[p.first->name()] = p.second;
   return map;
 }
+
+/// Helper type to force linker error on undefined genome field
+template <typename T>
+struct Checker {
+  /// Link against the (hopefully not missing) metadata
+  constexpr Checker (const T*) {}
+};
 
 /// \endcond
 } // end of namespace _details
@@ -282,13 +351,15 @@ protected:
   /// Helper alias to the derived type
   using this_t = G;
 
-  /// The base type for this genome's field managers
-  using value_t = _details::GenomeFieldInterface<G>;
+  /// Alias to helper type traits
+  using traits = _details::SAG_type_traits<G>;
 
-  /// Helper alias to the source of randomness
-  using Dice = typename value_t::Dice;
+  /// \copydoc SAG_type_traits<G>::Dice
+  using Dice = typename traits::Dice;
 
 public:
+  /// Helper alias to the configuration type
+  using config_t = config::SAGConfigFile<G>;
 
 // =============================================================================
 // == Evolutionary interface
@@ -346,15 +417,19 @@ public:
     return os;
   }
 
+
+// =============================================================================
+// == Reserved use
+
+  /// \returns a constant reference to the internal iterator object
+  /// \attention This should be of little use to the end-user
+  static const auto& iterator (void) {
+    return _iterator;
+  }
+
 protected:
-  /// Type used as value in the iterator
-  using Iterator_value = std::reference_wrapper<value_t>;
-
-  /// Iterator type for all auto-managed fields
-  using Iterator = std::map<std::string, Iterator_value>;
-
   /// Iterator object for all auto-managed fields
-  static Iterator _iterator;
+  static typename traits::Iterator _iterator;
 
   /// Helper alias for the reference to the config-embedded mutation rates
   using MutationRates = std::reference_wrapper<const config::MutationSettings::MutationRates>;
@@ -363,36 +438,57 @@ protected:
   static const MutationRates _mutationRates;
 
   /// \return An immutable reference to the field manager
-  static const auto& get (const typename Iterator::value_type &it) {
+  static const auto& get (const typename traits::Iterator::value_type &it) {
     return it.second.get();
   }
 };
 template <typename G>
-typename SelfAwareGenome<G>::Iterator SelfAwareGenome<G>::_iterator;
+typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
 
 /// \cond internal
+
+/// The namespace for genetic material
+#define __NMSP genotype
+
+/// The namespace for private genetic material
+#define __NMSP_D __NMSP::_details
+
+/// The qualified genomic type
+#define __SGENOME __NMSP::GENOME
+
+/// The qualified configuration file
+#define __SCONFIG __SGENOME::config_t
+
+/// The name of the static variable managing a specific genomic field
+#define __FIELD_MD(NAME) _##NAME##_metadata
 
 /// The fully-qualified genome field manager name for type \p ITYE, field type
 /// \p TYPE and name \p NAME
 #define __TARGS(ITYPE, TYPE, NAME)  \
-  genotype::_details::ITYPE<        \
-    TYPE, genotype::GENOME,         \
-    &genotype::GENOME::NAME         \
+  __NMSP_D::ITYPE<                  \
+    TYPE, __SGENOME,                \
+    &__SGENOME::NAME                \
   >
 
 /// The field manager for field \p NAME
-#define __GENOME_FIELD(NAME) genotype::GENOME::_##NAME##_metadata
+#define __GENOME_FIELD(NAME) __SGENOME::__FIELD_MD(NAME)
 
 /// Defines the field manager for field \p NAME of type \p TYPE
 /// Instantiates an object of derived type \p ITYPE
 #define __DEFINE_GENOME_FIELD_PRIVATE(ITYPE, TYPE, NAME, ...)   \
-  namespace genotype {                                          \
+  namespace __NMSP {                                            \
   const std::unique_ptr<__TARGS(GenomeField, TYPE, NAME)>       \
     __GENOME_FIELD(NAME) =                                      \
     std::make_unique<__TARGS(ITYPE, TYPE, NAME)>(               \
-      #NAME, genotype::GENOME::_iterator, __VA_ARGS__           \
+      #NAME, __SGENOME::_iterator, __VA_ARGS__                  \
     );                                                          \
   }
+
+/// Make link error if metadata is left undefined
+#define __ASSERT_METADATA_EXISTS(NAME)                  \
+  const _details::Checker<decltype(__FIELD_MD(NAME))>   \
+    _##NAME##_link_checker {&__FIELD_MD(NAME)};
+
 
 /// \endcond
 
@@ -400,20 +496,28 @@ typename SelfAwareGenome<G>::Iterator SelfAwareGenome<G>::_iterator;
 #define SELF_AWARE_GENOME(NAME) \
   NAME : public SelfAwareGenome<NAME>
 
+/// Hides away the CRTP and multiple inheritance
+#define SAG_CONFIG_FILE(GENOME)               \
+  SAGConfigFile<GENOME>                       \
+  : public SAGConfigFileTypes<GENOME>,        \
+    public ConfigFile<SAGConfigFile<GENOME>>
+
 /// Declare a genomic field of type \p TYPE and name \p NAME
-#define DECLARE_GENOME_FIELD(TYPE, NAME)  \
-  TYPE NAME;                              \
-  static const std::unique_ptr<           \
-    _details::GenomeField<                \
-        TYPE, this_t, &this_t::NAME       \
-    >> _##NAME##_metadata;
+#define DECLARE_GENOME_FIELD(TYPE, NAME)        \
+  TYPE NAME;                                    \
+  static const std::unique_ptr<                 \
+    _details::GenomeField<                      \
+        TYPE, this_t, &this_t::NAME             \
+    >> __FIELD_MD(NAME);                        \
+  __ASSERT_METADATA_EXISTS(NAME)
 
 /// Defines the genomic field \p NAME with type \p TYPE passing the variadic
 /// arguments to build the mutation bounds
-#define DEFINE_GENOME_FIELD_WITH_BOUNDS(TYPE, NAME, ...)              \
-  DEFINE_PARAMETER(CFILE::B<TYPE>, NAME##Bounds, __VA_ARGS__)         \
-  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldWithBounds, TYPE, NAME,    \
-                                 config::GENOME::NAME##Bounds.ref())
+#define DEFINE_GENOME_FIELD_WITH_BOUNDS(TYPE, NAME, ...)            \
+  DEFINE_PARAMETER_FOR(__SCONFIG, __SCONFIG::B<TYPE>,               \
+                       NAME##Bounds, __VA_ARGS__)                   \
+  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldWithBounds, TYPE, NAME,  \
+                                __SCONFIG::NAME##Bounds.ref())
 
 /// Defines the genomic field \p NAME with type \p TYPE passing the variadic
 /// arguments to build the function set
@@ -426,30 +530,29 @@ typename SelfAwareGenome<G>::Iterator SelfAwareGenome<G>::_iterator;
   __TARGS(GenomeFieldWithFunctor, TYPE, NAME)::Functor
 
 /// Defines an object linking a mutation rate to an automatic field manager
-#define MUTATION_RATE(NAME, VALUE)            \
-  std::pair<                                  \
-    genotype::_details::GenomeFieldInterface< \
-      genotype::GENOME                        \
-    >*, float                                 \
+#define MUTATION_RATE(NAME, VALUE)      \
+  std::pair<                            \
+    __NMSP_D::GenomeFieldInterface<     \
+      __SGENOME                         \
+    >*, float                           \
   >(__GENOME_FIELD(NAME).get(), VALUE)
 
 /// Defines the mutation rates map for the current genome
 #define DEFINE_GENOME_MUTATION_RATES(...)       \
   namespace config {                            \
-  DEFINE_MAP_PARAMETER(CFILE::M, mutationRates, \
-    genotype::_details::buildMap<               \
-      genotype::_details::GenomeFieldInterface< \
-        genotype::GENOME                        \
-      >                                         \
-    >(__VA_ARGS__)                              \
+  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,           \
+    __SCONFIG::M, mutationRates,                \
+    __NMSP_D::buildMap<__SGENOME>(              \
+      __SGENOME::iterator(), __VA_ARGS__        \
+    )                                           \
   )                                             \
   }                                             \
                                                 \
-  namespace genotype {                          \
+  namespace __NMSP {                            \
   template<>                                    \
   const SelfAwareGenome<GENOME>::MutationRates  \
     SelfAwareGenome<GENOME>::_mutationRates =   \
-    std::ref(CFILE::mutationRates());           \
+    std::ref(__SCONFIG::mutationRates());       \
   }
 
 } // end of namespace genotype

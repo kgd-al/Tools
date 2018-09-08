@@ -62,22 +62,36 @@ std::string verbosityValues (void);
   static ConfigValue<TYPE> NAME;
 
 /// Evaluates to the definition of a config value of requested \p TYPE and \p NAME
-#define __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, ...) \
+#define __DEFINE_PARAMETER_PRIVATE(CFILE, TYPE, NAME, ...) \
   CFILE::ConfigValue<TYPE> CFILE::NAME (config_iterator(), #NAME, __VA_ARGS__);
 
 /// @endcond
+
+/// Hide CRTP from config file declaration
+#define CONFIG_FILE(NAME) \
+  NAME : public ConfigFile<NAME>
 
 /// Declares a config value with given \p TYPE and \p NAME
 #define DECLARE_PARAMETER(TYPE, NAME) \
   __DECLARE_PARAMETER_PRIVATE(TYPE, NAME)
 
+/// Defines a config value for configuration file \p CFILE with given \p TYPE
+/// and \p NAME build from the variadic arguments
+#define DEFINE_PARAMETER_FOR(CFILE, TYPE, NAME, ...) \
+  __DEFINE_PARAMETER_PRIVATE(CFILE, TYPE, NAME, __VA_ARGS__)
+
 /// Defines a config value with given \p TYPE and \p NAME build from the variadic arguments
 #define DEFINE_PARAMETER(TYPE, NAME, ...) \
-  __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, __VA_ARGS__)
+  DEFINE_PARAMETER_FOR(CFILE, TYPE, NAME, __VA_ARGS__)
+
+/// Defines a config value for configuration file \p CFILE of map type \p TYPE
+/// named \p NAME. Variadic arguments are used to instantiate on-the-fly
+#define DEFINE_MAP_PARAMETER_FOR(CFILE, TYPE, NAME, ...) \
+  __DEFINE_PARAMETER_PRIVATE(CFILE, TYPE, NAME, TYPE(__VA_ARGS__))
 
 /// Defines a config value of map type \p TYPE named \p NAME. Variadic arguments are used to instantiate on-the-fly
 #define DEFINE_MAP_PARAMETER(TYPE, NAME, ...) \
-  __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, TYPE(__VA_ARGS__))
+  DEFINE_PARAMETER_FOR(CFILE, TYPE, NAME, TYPE(__VA_ARGS__))
 
 #ifndef NDEBUG
 /// Declares a config value of type \p TYPE name \p NAME iff the NDEBUG macro is undefined

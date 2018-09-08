@@ -114,7 +114,7 @@ struct MutationSettings {
     template <typename U=T>
     std::enable_if_t<utils::is_cpp_array<U>::value, void>
     mutate (U &a, rng::AbstractDice &dice) const {
-      uint i = dice(0ul, a.size());
+      uint i = dice(0ul, a.size()-1);
       mutate(a[i], min[i], max[i], dice);
     }
 

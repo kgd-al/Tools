@@ -1,0 +1,96 @@
+\documentclass{standalone}
+\usepackage{dot2texi}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+\usepackage{array}
+\usepackage{listings}
+\begin{document}
+\begin{tabular}{l}
+  genome.h \\
+  \begin{lstlisting}[mathescape]
+struct SELF_AWARE_GENOME(FOO) { [$G$]
+  ...
+  DECLARE_FIELD(BAR)            [$G^h_i$]
+  ...  
+}
+  \end{lstlisting} \\
+  
+  ========== \\
+  genome.cpp \\
+  \begin{lstlisting}[mathescape]
+...
+DEFINE(BAR)                     [$G^c_i$]
+...
+DEFINE_RATE(                    [$G^R$]
+  ...
+  {BAR,r}                       [$G^r_i$]
+  ...
+)
+  \end{lstlisting} \\
+
+  ========== \\
+  genomeconfig.h \\
+  \begin{lstlisting}[mathescape]
+struct SAG_CONFIG_FILE(FOO) {   [$C$]
+  ...
+  DECLARE(BAR)                  [$C^h_i$]
+  ...
+  DECLARE_RATES(R)              [$C^R$]
+}
+  \end{lstlisting} \\
+
+  \begin{dot2tex}[neato]
+  digraph G {
+    rankdir=LR;
+    
+    G [color=red];
+    G_hi [color=red, texlbl="$G^h_i$"];
+    G_ci [texlbl="$G^c_i$"];
+    
+    G_R [color=red, texlbl="$G^R$"];
+    G_ri [texlbl="$G^r_i$"];
+    
+    C [color=red];
+    C_R [color=red, texlbl="$C^R$"];
+    C_hi [color=red, texlbl="$C^h_i$"];
+    
+    G -> C [color=red];
+    C -> G [color=red];
+    C -> C_R [color=red];
+    
+    G -> G_R [color=red];
+    G_hi -> G [color=red];
+    G_hi -> G_ci;
+    G_ci -> G_hi;
+    G_ci -> G_ri;
+    G_ri -> G_R;
+    G_R -> C_R;
+    
+    C_hi -> C_R [color=red];
+    C_R -> C_hi [color=red];
+  }
+  \end{dot2tex}
+  \\
+  \begin{tabular}{>{$}c<{$}@{$\to$}>{$}c<{$}ll}
+    \multicolumn{2}{c}{Missing} & That is & Error (g++7.3)\\
+    \hline
+    G^c_i & G^h_i & Defining undeclared field
+    & BAR is not a member of FOO \\
+    
+    G^c_i & G^r_i & No mutation rate for a defined field
+    & No mutation rate defined for field BAR \\
+    
+    G^R & C^R   & Forgot to declare the mutation rates in the configuration file
+    & mutationRates is not a member of SAG\_CONFIG\_FILE(FOO) \\  
+    
+    G^r_i & G^R & - & - \\
+    
+    G^h_i & G^c_i & Field declared but not defined
+    & Undefined reference to \_BAR\_metadata \\
+
+    \multicolumn{4}{c}{\LARGE vvHEREvv} \\
+    G^h_i & G     & & ??? \\
+    
+  \end{tabular}
+\end{tabular}
+\end{document}

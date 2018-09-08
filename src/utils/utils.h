@@ -75,6 +75,7 @@ std::string className (void) {
 }
 
 /// \returns The unmangled, unscope name of the template class
+/// \todo Does not play nice with e.g. foo::bar<foo::baz>
 template <typename T>
 std::string unscopedClassName (void) {
   std::string name = className<T>();
@@ -167,6 +168,14 @@ std::istream& operator>> (std::istream &is, std::array<T, SIZE> &a) {
   is >> c;
   for (T &v: a) is >> v;
   return is;
+}
+
+/// Stream values into a std::vector<...>
+template <typename T>
+std::ostream& operator<< (std::ostream &os, const std::vector<T> &vec) {
+  os << "[ ";
+  for (auto &v: vec) os << v << " ";
+  return os << "]";
 }
 
 /// Stream values from a std::pair<...>
