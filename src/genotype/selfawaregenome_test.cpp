@@ -1,18 +1,10 @@
+/// [selfAwareGenomeFullExample]
+
+#include <array>
 #include <iostream>
 
 #include "../settings/configfile.h"
 #include "../settings/mutationbounds.hpp"
-
-#include <array>
-namespace config {
-template <typename G>
-struct SAGConfigFileTypes {
-  template <typename T>
-  using B = MutationSettings::Bounds<T, G>;
-  using M = MutationSettings::MutationRates;
-};
-template <typename G> struct SAGConfigFile;
-}
 
 #include "selfawaregenome.hpp"
 
@@ -33,7 +25,7 @@ public:
 namespace genotype { struct InternalTrivial; }
 namespace config {
 template <>
-struct SAG_CONFIG_FILE(genotype::InternalTrivial) {
+struct SAG_CONFIG_FILE(InternalTrivial) {
   DECLARE_PARAMETER(B<float>, floatFieldBounds)
   DECLARE_PARAMETER(M, mutationRates)
 };
@@ -69,7 +61,7 @@ public:
 namespace genotype { struct InternalComplex; }
 namespace config {
 template <>
-struct SAG_CONFIG_FILE(genotype::InternalComplex) {
+struct SAG_CONFIG_FILE(InternalComplex) {
   using M = MutationSettings::MutationRates;
   DECLARE_PARAMETER(M, mutationRates)
 };
@@ -87,7 +79,7 @@ static const auto stringFunctor = [] {
 
   GENOME_FIELD_FUNCTOR(std::string, stringField) functor {};
   functor.random =
-      [] (auto &) { return std::string(); };
+      [] (auto &dice) { return std::string(dice(1,2), '#'); };
 
   functor.mutate =
       [] (auto &s, auto &dice) { s += dice(min, max); };
@@ -143,7 +135,10 @@ namespace genotype {
 class SELF_AWARE_GENOME(External) {
 public:
   DECLARE_GENOME_FIELD(int, intField)
-  DECLARE_GENOME_FIELD(std::vector<float>, vectorField)
+  DECLARE_GENOME_FIELD(std::vector<InternalTrivial>, vectorField)
+  DECLARE_GENOME_FIELD(InternalComplex, recField)
+
+  /// \todo Add Crossover management
 
   using A = std::array<float,2>;
   DECLARE_GENOME_FIELD(A, arrayField)
@@ -156,17 +151,11 @@ public:
 namespace genotype { struct External; }
 namespace config {
 template <>
-struct SAG_CONFIG_FILE(genotype::External) {
+struct SAG_CONFIG_FILE(External) {
   using A = std::array<float,2>;
 
   DECLARE_PARAMETER(B<int>, intFieldBounds)
   DECLARE_PARAMETER(B<A>, arrayFieldBounds)
-
-  /// \todo Change to vector of trivial
-  DECLARE_PARAMETER(B<std::vector<float>>, vectorFieldBounds)
-
-  /// \todo Add complex
-  /// \todo Add Crossover management
 
   DECLARE_PARAMETER(M, mutationRates)
 };
@@ -178,17 +167,27 @@ struct SAG_CONFIG_FILE(genotype::External) {
 #define GENOME External
 DEFINE_GENOME_FIELD_WITH_BOUNDS(int, intField, 1, 2, 3, 4)
 
-using V = std::vector<float>;
+using V = std::vector<genotype::InternalTrivial>;
 static const auto vectorFunctor = [] {
   GENOME_FIELD_FUNCTOR(V, vectorField) functor {};
   functor.random = [] (auto &) { return V(); };
-  functor.mutate = [] (auto &, auto &) {};
-  functor.cross = [] (const auto &, const auto &, auto &) { return V(); };
-  functor.distance = [] (const auto &, const auto &) { return 0; };
-  functor.check = [] (auto &) { return false; };
+  functor.mutate = [] (auto &v, auto &d) {
+    v.push_back(genotype::InternalTrivial::random(d));
+  };
+  functor.cross = [] (const auto &lhs, const auto &rhs, auto &) {
+    V res;
+    res.insert(res.end(), lhs.begin(), lhs.end());
+    res.insert(res.end(), rhs.begin(), rhs.end());
+    return res;
+  };
+  functor.distance = [] (const auto &lhs, const auto &rhs) {
+    return fabs(double(lhs.size()) - double(rhs.size()));
+  };
+  functor.check = [] (auto &) { return true; };
   return functor;
 };
 DEFINE_GENOME_FIELD_WITH_FUNCTOR(V, vectorField, vectorFunctor())
+DEFINE_GENOME_FIELD_AS_SUBGENOME(genotype::InternalComplex, recField)
 
 using A = genotype::GENOME::A;
 DEFINE_GENOME_FIELD_WITH_BOUNDS(A, arrayField, A{-10,0}, A{0,10})
@@ -196,6 +195,8 @@ DEFINE_GENOME_FIELD_WITH_BOUNDS(A, arrayField, A{-10,0}, A{0,10})
 DEFINE_GENOME_MUTATION_RATES({
   MUTATION_RATE(  intField, 2.f ),
   MUTATION_RATE(arrayField, 4.f ),
+  MUTATION_RATE(vectorField, 4.f ),
+  MUTATION_RATE(recField, 4.f ),
 })
 
 #undef GENOME
@@ -213,19 +214,19 @@ void showcase (F setter) {
   std::cout << "\n" << utils::className<GENOME>() << " size: "
             << sizeof(g0) << std::endl;
 
-  std::cout << "\nDefault init g0:\n" << g0 << std::endl;
+  std::cout << "\nDefault init g0:" << g0 << std::endl;
 
   setter(g0);
-  std::cout << "\nModified g0:\n" << g0 << std::endl;
+  std::cout << "\nModified g0:" << g0 << std::endl;
   std::cout << "\nis g0 valid? " << g0.check() << std::endl;
 
   rng::FastDice dice;
   GENOME g1 = GENOME::random(dice);
-  std::cout << "\nRandom g1:\n" << g1 << std::endl;
+  std::cout << "\nRandom g1:" << g1 << std::endl;
 
   for (uint i=0; i<5; i++) {
     g1.mutate(dice);
-    std::cout << "\nAfter mutation " << i << ":\n" << g1 << std::endl;
+    std::cout << "\nAfter mutation " << i << ":" << g1 << std::endl;
   }
 
   std::cout << "\nDistance(g0,g1) = " << distance(g0, g1) << std::endl;
@@ -234,17 +235,23 @@ void showcase (F setter) {
 
 
 int main (void) {
-//  showcase<genotype::InternalTrivial>([] (auto &g) {});
+  showcase<genotype::InternalTrivial>([] (auto&) {});
 
-//  showcase<genotype::InternalComplex>([] (auto &g) {
-//    g.stringField = "tOt!";
-//  });
+  showcase<genotype::InternalComplex>([] (auto &g) {
+    g.stringField = "tOt!";
+  });
 
   showcase<genotype::External>([] (auto &g) {
+    rng::FastDice dice (1);
     g.intField = 42;
     g.arrayField = {4,2};
-    g.vectorField = {4,2};
+    g.recField = genotype::InternalComplex::random(dice);
+    g.vectorField = {
+      genotype::InternalTrivial::random(dice),
+      genotype::InternalTrivial::random(dice)
+    };
   });
 
   return 0;
 }
+/// [selfAwareGenomeFullExample]

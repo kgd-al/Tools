@@ -98,6 +98,8 @@ if (GENERATE_HELP)
 
     set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/docs")
 
+    set(DOXYGEN_EXAMPLE_PATH "src/")
+
     # Qt help
     set(DOXYGEN_GENERATE_QHP YES)
     set(DOXYGEN_QCH_FILE "../tools.qch")

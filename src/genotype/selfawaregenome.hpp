@@ -2,6 +2,7 @@
 #define _SELF_AWARE_GENOME_H_
 
 #include <ostream>
+#include <iomanip>
 #include <string>
 #include <map>
 
@@ -20,6 +21,31 @@
  *
  * Most of this file is not intended for the end-user.
  */
+
+namespace config {
+namespace _details {
+
+/// Provides common types used for definining mutation bounds and rates
+template <typename G>
+struct SAGConfigFileTypes {
+  /// Helper alias for the relevant bounds abstraction type
+  template <typename T>
+  using Bounds = MutationSettings::Bounds<T, G>;
+
+  /// Lazy-ass helper alias for the relevant bounds abstraction type
+  template <typename T>
+  using B = Bounds<T>;
+
+  /// Helper alias to the mutation rates type
+  using MutationRates = MutationSettings::MutationRates;
+
+  /// Lazy-ass helper alias to the mutation rates type
+  using M = MutationRates;
+};
+} // end of namespace _details
+
+template <typename G> struct SAGConfigFile;
+} // end of namespace config
 
 namespace genotype {
 
@@ -65,6 +91,22 @@ public:
 
   /// \returns Whether the corresponding field is in the valid range
   virtual bool check (G &genome) const = 0;
+};
+
+/// Helper type storing the various types used by the self aware genomes
+template <typename G>
+struct SAG_type_traits {
+  /// The base type for this genome's field managers
+  using value_t = _details::GenomeFieldInterface<G>;
+
+  /// Helper alias to the source of randomness
+  using Dice = typename value_t::Dice;
+
+  /// Type used as value in the iterator
+  using Iterator_value = std::reference_wrapper<value_t>;
+
+  /// Iterator type for all auto-managed fields
+  using Iterator = std::map<std::string, Iterator_value>;
 };
 
 /// \brief Genome field interface with direct access to the associated field
@@ -203,16 +245,11 @@ public:
     Cross_f cross = nullptr;      ///< \copydoc Cross_f
     Distn_f distance = nullptr;   ///< \copydoc Distn_f
     Check_f check = nullptr;      ///< \copydoc Check_f
-  } _functor; ///< The function set used to manage this field
 
-  /// Builds a genomic interface for field \p name, registers it in registry and
-  /// stores the set of functions managing the associated field
-  template <typename R>
-  GenomeFieldWithFunctor (const std::string &name, R &registry,
-                          Random_f rndF, Mutate_f mutF,
-                          Cross_f crsF, Distn_f dstF, Check_f chkF)
-    : GenomeFieldWithFunctor (name, registry,
-                              Functor{rndF, mutF, crsF, dstF, chkF}) {}
+    /// Extracts and type-check required function from a self-aware genome
+    static Functor buildFromSubgenome (void);
+
+  } _functor; ///< The function set used to manage this field
 
   /// Builds a genomic interface for field \p name, registers it in registry and
   /// stores the set of functions managing the associated field
@@ -259,22 +296,6 @@ private:
   bool checkPrivate (O &object) const override {
     return _functor.check(get(object));
   }
-};
-
-/// Helper type storing the various types used by the self aware genomes
-template <typename G>
-struct SAG_type_traits {
-  /// The base type for this genome's field managers
-  using value_t = _details::GenomeFieldInterface<G>;
-
-  /// Helper alias to the source of randomness
-  using Dice = typename value_t::Dice;
-
-  /// Type used as value in the iterator
-  using Iterator_value = std::reference_wrapper<value_t>;
-
-  /// Iterator type for all auto-managed fields
-  using Iterator = std::map<std::string, Iterator_value>;
 };
 
 /// Helper function for generating the mutation rates map from an initializer
@@ -325,6 +346,53 @@ struct Checker {
   constexpr Checker (const T*) {}
 };
 
+/// Manages indentation for provided ostream
+/// \author James Kanze @ https://stackoverflow.com/a/9600752
+class IndentingOStreambuf : public std::streambuf {
+  static constexpr uint INDENT = 2; ///< Indentation between hierarchical levels
+
+  std::ostream*       _owner;   ///< Associated ostream
+  std::streambuf*     _buffer;  ///< Associated buffer
+  bool                _isAtStartOfLine; ///< Whether to insert indentation
+  const std::string   _indent;  ///< Indentation value
+
+protected:
+  /// Overrides std::basic_streambuf::overflow to insert indentation at line start
+  virtual int overflow (int ch) {
+    if ( _isAtStartOfLine && ch != '\n' )
+      _buffer->sputn(_indent.data(), _indent.size());
+    _isAtStartOfLine = (ch == '\n');
+    return _buffer->sputc(ch);
+  }
+
+  /// \returns index of indent-storage space inside the ios_base static region
+  static uint index (void) {
+    static uint i = std::ios_base::xalloc();
+    return i;
+  }
+
+  /// \returns the indent level for the associated level
+  uint indent (uint di = 0) {
+    long &i = _owner->iword(index());
+    if (di != 0)  i += di;
+    return i;
+  }
+
+public:
+  /// Creates a proxy buffer managing indentation level
+  explicit IndentingOStreambuf(std::ostream& dest)
+    : _owner(&dest), _buffer(dest.rdbuf()),
+      _isAtStartOfLine(true), _indent(indent(INDENT), ' ' ) {
+      _owner->rdbuf( this );
+  }
+
+  /// Returns control of the buffer to its owner
+  virtual ~IndentingOStreambuf(void) {
+    _owner->rdbuf(_buffer);
+    indent(-INDENT);
+  }
+};
+
 /// \endcond
 } // end of namespace _details
 
@@ -341,10 +409,11 @@ struct Checker {
 ///
 ///   - Functor-controlled types:
 ///     - Everything for which you (the end-user) can write the necessary functions
-
+///
 /// \tparam The derived type
 ///
-/// \see selfawaregenome_test.cpp for implementation exemple
+/// \par Full blown example:
+/// \snippet selfawaregenome_test.cpp selfAwareGenomeFullExample
 template <typename G>
 class SelfAwareGenome {
 protected:
@@ -354,7 +423,7 @@ protected:
   /// Alias to helper type traits
   using traits = _details::SAG_type_traits<G>;
 
-  /// \copydoc SAG_type_traits<G>::Dice
+  /// \copydoc _details::SAG_type_traits::Dice
   using Dice = typename traits::Dice;
 
 public:
@@ -366,8 +435,8 @@ public:
 
   /// \returns A genome with all auto-managed fields initialized to appropriate
   /// values
-  static G random (Dice &dice) {
-    G tmp;
+  static this_t random (Dice &dice) {
+    this_t tmp;
     for (auto &it: _iterator) get(it).random(tmp, dice);
     return tmp;
   }
@@ -375,32 +444,56 @@ public:
   /// Alters a single auto-managed field in the genome based on the relative
   /// mutation rates and valid bounds/generators
   void mutate (Dice &dice) {
-    std::string fieldName = dice.pickOne(_mutationRates.get());
-    std::cerr << "Mutated field " << fieldName << std::endl;
-    _iterator.at(fieldName).get().mutate(static_cast<G&>(*this), dice);
+    mutate(static_cast<G&>(*this), dice);
   }
 
   /// \returns the genomic distance between all auto-managed fields in both
   /// arguments
-  friend double distance (const this_t &lhs, const this_t &rhs) {
+  friend double distance (const G &lhs, const G &rhs) {
+    return SelfAwareGenome<G>::distance(lhs, rhs);
+  }
+
+  /// \returns the result of crossing all auto-managed fields in both arguments
+  template <typename H>
+  friend this_t cross (const H &lhs, const H &rhs, Dice &dice) {
+    return SelfAwareGenome<G>::cross(lhs, rhs, dice);
+  }
+
+  /// \returns Whether all auto-managed fields in this genome are valid
+  bool check (void) {
+    return check(static_cast<G&>(*this));
+  }
+
+// =============================================================================
+// == Evolutionary interface (static version)
+
+  /// Static implementation of mutate(Dice)
+  static void mutate (G &object, Dice &dice) {
+    std::string fieldName = dice.pickOne(_mutationRates.get());
+    std::cerr << "Mutated field " << fieldName << std::endl;
+    _iterator.at(fieldName).get().mutate(object, dice);
+  }
+
+  /// Static implementation of distance(G&,G&)
+  static double distance (const G &lhs, const G &rhs) {
     double d = 0;
     for (auto &it: _iterator)
       d+= get(it).distance(lhs, rhs);
     return d;
   }
 
-  /// \returns the result of crossing all auto-managed fields in both arguments
-  friend this_t cross (const this_t &lhs, const this_t &rhs, Dice &dice) {
+  /// Static implementation of cross(G&,G&,Dice&)
+  static this_t cross (const G &lhs, const G &rhs, Dice &dice) {
     this_t res;
     for (auto &it: _iterator)
       get(it).cross(lhs, rhs, res, dice);
     return res;
   }
 
-  /// \returns Whether all auto-managed fields in this genome are valid
-  bool check (void) {
+  /// Static implementation of check()
+  static bool check (G &object){
     bool ok = true;
-    for (auto &it: _iterator) ok &= get(it).check(static_cast<G&>(*this));
+    for (auto &it: _iterator) ok &= get(it).check(object);
     return ok;
   }
 
@@ -409,8 +502,10 @@ public:
 
   /// Stream all auto-managed fields to \p os
   friend std::ostream& operator<< (std::ostream &os, const SelfAwareGenome &g) {
+    _details::IndentingOStreambuf indent(os);
+    os << "\n";
     for (auto &it: _iterator) {
-      os << "\t" << it.first << ": ";
+      os << it.first << ": ";
       get(it).print(os, static_cast<const G&>(g));
       os << "\n";
     }
@@ -444,6 +539,20 @@ protected:
 };
 template <typename G>
 typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
+
+template <typename T, typename O, T O::*F>
+typename _details::GenomeFieldWithFunctor<T,O,F>::Functor
+_details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
+  using D = typename SAG_type_traits<T>::Dice;
+  Functor f;
+  f.random = T::random;
+  f.mutate = static_cast<void(*)(T&,D&)>(T::mutate);
+  f.cross = T::cross;
+  f.distance = T::distance;
+  f.check = static_cast<bool(*)(T&)>(T::check);
+  return f;
+}
+
 
 /// \cond internal
 
@@ -486,7 +595,7 @@ typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
 
 /// Make link error if metadata is left undefined
 #define __ASSERT_METADATA_EXISTS(NAME)                  \
-  const _details::Checker<decltype(__FIELD_MD(NAME))>   \
+  _details::Checker<decltype(__FIELD_MD(NAME))>   \
     _##NAME##_link_checker {&__FIELD_MD(NAME)};
 
 
@@ -497,10 +606,10 @@ typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
   NAME : public SelfAwareGenome<NAME>
 
 /// Hides away the CRTP and multiple inheritance
-#define SAG_CONFIG_FILE(GENOME)               \
-  SAGConfigFile<GENOME>                       \
-  : public SAGConfigFileTypes<GENOME>,        \
-    public ConfigFile<SAGConfigFile<GENOME>>
+#define SAG_CONFIG_FILE(GENOME)                           \
+  SAGConfigFile<__NMSP::GENOME>                           \
+  : public _details::SAGConfigFileTypes<__NMSP::GENOME>,  \
+    public ConfigFile<SAGConfigFile<__NMSP::GENOME>>
 
 /// Declare a genomic field of type \p TYPE and name \p NAME
 #define DECLARE_GENOME_FIELD(TYPE, NAME)        \
@@ -523,6 +632,14 @@ typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
 /// arguments to build the function set
 #define DEFINE_GENOME_FIELD_WITH_FUNCTOR(TYPE, NAME, F) \
   __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldWithFunctor, TYPE, NAME, F)
+
+/// Defines the genomic field \p NAME with type \p TYPE as a subgenome forwarding
+/// its functions to the functor constructor
+#define DEFINE_GENOME_FIELD_AS_SUBGENOME(TYPE, NAME)  \
+  __DEFINE_GENOME_FIELD_PRIVATE(                      \
+    GenomeFieldWithFunctor, TYPE, NAME,               \
+    GENOME_FIELD_FUNCTOR(TYPE, NAME)::buildFromSubgenome() \
+  )
 
 /// Helper alias to the type of a functor object for a specific, auto-managed,
 /// field
