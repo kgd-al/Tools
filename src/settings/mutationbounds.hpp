@@ -19,6 +19,7 @@ namespace config {
 /// Provide handy types for mutation bounds definition
 struct MutationSettings {
 
+  /// Helper alias to the source of randomness
   using Dice = rng::AbstractDice;
 
   template <typename T, typename = void>
@@ -31,6 +32,8 @@ struct MutationSettings {
   template <typename T, typename O>
   struct Bounds {
 
+    /// Helper alias to the specialized template performing the rand/mutate/...
+    /// operations
     using Operators = BoundsOperators<T>;
 
     /// Minimal value reachable through random initialisation/mutation
@@ -102,9 +105,10 @@ struct MutationSettings {
 
 /// \cond internal
 
+/// Bounds manager specialized in fundamental types (int, float, ...)
 template <typename T>
 struct MutationSettings::BoundsOperators<T, std::enable_if_t<std::is_fundamental<T>::value>> {
-  using Dice = MutationSettings::Dice;
+  using Dice = MutationSettings::Dice; ///< \copydoc MutationSettings::Dice
 
   /// \copydoc MutationSettings::Bounds::rand
   static T rand (T min, T max, Dice &dice) {
@@ -160,42 +164,50 @@ private:
   }
 };
 
-template <typename T>
-struct MutationSettings::BoundsOperators<T, std::enable_if_t<std::is_enum<T>::value>> {
-  using Dice = MutationSettings::Dice;
+/// Bounds manager specialized for enumeration types (actually just forwards
+/// values as integers)
+template <typename E>
+struct MutationSettings::BoundsOperators<E, std::enable_if_t<std::is_enum<E>::value>> {
+  using Dice = MutationSettings::Dice; ///< \copydoc MutationSettings::Dice
+
+  /// Helper alias to the actual behind-the-scenes worker
   using Operator = MutationSettings::BoundsOperators<int>;
 
-  /// \return a value in the initial range
-  /// \tparam RNG Probably a dice \see rng::AbstractDice
-  static T rand (T min, T max, Dice &dice) {
-    return T(Operator::rand(int(min), int(max), dice));
+  /// \return a value in the initial enumeration range
+  static E rand (E min, E max, Dice &dice) {
+    return E(Operator::rand(int(min), int(max), dice));
   }
 
-  static double distance (T lhs, T rhs, T min, T max) {
+  /// \return the distance between two enumeration values
+  static double distance (E lhs, E rhs, E min, E max) {
     return Operator::distance(int(lhs), int(rhs), int(min), int(max));
   }
 
-  static void mutate (T &v, T min, T max, Dice &dice) {
+  /// Change the enumeration value by another, valid, one
+  static void mutate (E &v, E min, E max, Dice &dice) {
     int iv = v;
     Operator::mutate(iv, int(min), int(max), dice);
-    v = T(iv);
+    v = E(iv);
   }
 
-  static bool check (T &v, T min, T max) {
+  /// \returns whether the enumeration value is the valid range
+  static bool check (E &v, E min, E max) {
     int iv = v;
     bool ok = Operator::check(iv, int(min), int(max));
-    v = T(iv);
+    v = E(iv);
     return ok;
   }
 };
 
+/// Bounds manager specialized for array types
 template <typename T>
 struct MutationSettings::BoundsOperators<T, std::enable_if_t<utils::is_cpp_array<T>::value>> {
-  using Dice = MutationSettings::Dice;
+  using Dice = MutationSettings::Dice; ///< \copydoc MutationSettings::Dice
+
+  /// Helper alias to the single-value worker
   using FOperators = MutationSettings::BoundsOperators<typename T::value_type>;
 
   /// \return a value in the initial, multidimensional, range
-  /// \tparam RNG Probably a dice \see rng::AbstractDice
   static T rand (const T &min, const T &max, Dice &dice) {
     T tmp;
     uint i = 0;
@@ -234,7 +246,6 @@ struct MutationSettings::BoundsOperators<T, std::enable_if_t<utils::is_cpp_array
       ok &= FOperators::check(v, min[i], max[i]), i++;
     return ok;
   }
-
 };
 
 /// \endcond

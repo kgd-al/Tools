@@ -607,14 +607,13 @@ public:
 
   /// Stream all auto-managed fields to \p os
   friend std::ostream& operator<< (std::ostream &os, const G &g) {
-    assert(false);
-//    _details::IndentingOStreambuf indent(os);
-//    os << "\n";
-//    for (auto &it: _iterator) {
-//      os << it.first << ": ";
-//      get(it).print(os, cast(g));
-//      os << "\n";
-//    }
+    _details::IndentingOStreambuf indent(os);
+    os << "\n";
+    for (auto &it: _iterator) {
+      os << it.first << ": ";
+      get(it).print(os, g);
+      os << "\n";
+    }
     return os;
   }
 
@@ -622,7 +621,7 @@ public:
   friend bool operator== (const G &lhs, const G &rhs) {
     bool eq = true;
     for (auto &it: _iterator)
-      eq &= (get(it).equal(downcast(lhs), downcast(rhs)));
+      eq &= (get(it).equal(lhs, rhs));
     lhs.equalExtension(rhs, eq);
     return eq;
   }
