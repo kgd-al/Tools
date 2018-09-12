@@ -15,6 +15,8 @@
 namespace genotype {
 class SELF_AWARE_GENOME(InternalTrivial) {
 public:
+  InternalTrivial(void) {}
+
   DECLARE_GENOME_FIELD(float, floatField)
 };
 } // end of namespace genotype
@@ -35,7 +37,7 @@ struct SAG_CONFIG_FILE(InternalTrivial) {
 // =============================================================================
 // trivial.cpp
 #define GENOME InternalTrivial
-DEFINE_GENOME_FIELD_WITH_BOUNDS(float, floatField, -4.f, 0.f, 0.f, 4.f)
+DEFINE_GENOME_FIELD_WITH_BOUNDS(float, floatField, "ff", -4.f, 0.f, 0.f, 4.f)
 
 DEFINE_GENOME_MUTATION_RATES({
   MUTATION_RATE(floatField, 1.f ),
@@ -51,6 +53,8 @@ DEFINE_GENOME_MUTATION_RATES({
 namespace genotype {
 class SELF_AWARE_GENOME(InternalComplex) {
 public:
+  InternalComplex(void) {}
+
   DECLARE_GENOME_FIELD(std::string, stringField)
 };
 } // end of namespace genotype
@@ -117,7 +121,7 @@ static const auto stringFunctor = [] {
 
   return functor;
 };
-DEFINE_GENOME_FIELD_WITH_FUNCTOR(std::string, stringField, stringFunctor())
+DEFINE_GENOME_FIELD_WITH_FUNCTOR(std::string, stringField, "sf", stringFunctor())
 
 DEFINE_GENOME_MUTATION_RATES({
   MUTATION_RATE(stringField, 1.f ),
@@ -132,13 +136,26 @@ DEFINE_GENOME_MUTATION_RATES({
 // =============================================================================
 // genome.h
 namespace genotype {
+enum Enum { V0, V1, V2 };
+std::ostream& operator<< (std::ostream &os, Enum e) {
+  return os << int(e);
+}
+std::istream& operator>> (std::istream &is, Enum &e) {
+  int iv;
+  is >> iv;
+  e = Enum(iv);
+  return is;
+}
+
 class SELF_AWARE_GENOME(External) {
 public:
+  External(void) {}
+
   DECLARE_GENOME_FIELD(int, intField)
   DECLARE_GENOME_FIELD(std::vector<InternalTrivial>, vectorField)
   DECLARE_GENOME_FIELD(InternalComplex, recField)
 
-  /// \todo Add Crossover management
+  DECLARE_GENOME_FIELD(Enum, enumField)
 
   using A = std::array<float,2>;
   DECLARE_GENOME_FIELD(A, arrayField)
@@ -156,6 +173,7 @@ struct SAG_CONFIG_FILE(External) {
 
   DECLARE_PARAMETER(B<int>, intFieldBounds)
   DECLARE_PARAMETER(B<A>, arrayFieldBounds)
+  DECLARE_PARAMETER(B<genotype::Enum>, enumFieldBounds)
 
   DECLARE_PARAMETER(M, mutationRates)
 };
@@ -165,7 +183,7 @@ struct SAG_CONFIG_FILE(External) {
 // =============================================================================
 // genome.cpp
 #define GENOME External
-DEFINE_GENOME_FIELD_WITH_BOUNDS(int, intField, 1, 2, 3, 4)
+DEFINE_GENOME_FIELD_WITH_BOUNDS(int, intField, "", 1, 2, 3, 4)
 
 using V = std::vector<genotype::InternalTrivial>;
 static const auto vectorFunctor = [] {
@@ -186,11 +204,13 @@ static const auto vectorFunctor = [] {
   functor.check = [] (auto &) { return true; };
   return functor;
 };
-DEFINE_GENOME_FIELD_WITH_FUNCTOR(V, vectorField, vectorFunctor())
-DEFINE_GENOME_FIELD_AS_SUBGENOME(genotype::InternalComplex, recField)
+DEFINE_GENOME_FIELD_WITH_FUNCTOR(V, vectorField, "vf", vectorFunctor())
+DEFINE_GENOME_FIELD_AS_SUBGENOME(genotype::InternalComplex, recField, "rf")
+
+DEFINE_GENOME_FIELD_WITH_BOUNDS(genotype::Enum, enumField, "ef", genotype::Enum::V0, genotype::Enum::V2)
 
 using A = genotype::GENOME::A;
-DEFINE_GENOME_FIELD_WITH_BOUNDS(A, arrayField, A{-10,0}, A{0,10})
+DEFINE_GENOME_FIELD_WITH_BOUNDS(A, arrayField, "af", A{-10,0}, A{0,10})
 
 DEFINE_GENOME_MUTATION_RATES({
   MUTATION_RATE(  intField, 2.f ),
@@ -231,8 +251,17 @@ void showcase (F setter) {
 
   std::cout << "\nDistance(g0,g1) = " << distance(g0, g1) << std::endl;
   std::cout << "\ng0 x g1 = " << cross(g0, g1, dice) << std::endl;
-}
 
+  std::string serialTestFile ("showcase_" + utils::unscopedClassName<GENOME>() + ".gnm");
+  g0.toFile(serialTestFile);
+  GENOME g0_ = GENOME::fromFile(serialTestFile);
+  assert(g0 == g0_);
+
+  std::cout << "g1 serialized: " << g1.dump(2) << std::endl;
+
+  std::cout.flush();
+  std::cerr.flush();
+}
 
 int main (void) {
   showcase<genotype::InternalTrivial>([] (auto&) {});

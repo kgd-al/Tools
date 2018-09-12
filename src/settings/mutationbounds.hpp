@@ -6,6 +6,8 @@
 #include <type_traits>
 #include <random>
 
+#include "../random/dice.hpp"
+
 namespace config {
 
 /*!
@@ -17,10 +19,20 @@ namespace config {
 /// Provide handy types for mutation bounds definition
 struct MutationSettings {
 
+  using Dice = rng::AbstractDice;
+
+  template <typename T, typename = void>
+  struct BoundsOperators {
+    static_assert(sizeof(T) == -1, "Invalid bound type");
+  };
+
   /// Mutation bounds for a specific genomic field
   /// \tparam T a primitive type (int, float, ...)
   template <typename T, typename O>
   struct Bounds {
+
+    using Operators = BoundsOperators<T>;
+
     /// Minimal value reachable through random initialisation/mutation
     T min;
 
@@ -48,92 +60,25 @@ struct MutationSettings {
     /// Different absolute and initial maximals. Identical for minimal.
     Bounds (T min, bool, T rndMax, T max) : Bounds(min, min, rndMax, max) {}
 
-    /// \return the range of valid values for these bounds
-    template <typename U=T>
-    std::enable_if_t<std::is_fundamental<U>::value, double>
-    span (void) const {
-      return double(max) - double(min);
-    }
-
-    /// \return the range of valid values for these bounds
-    template <typename U=T>
-    std::enable_if_t<utils::is_cpp_array<U>::value, double>
-    span (uint i) const {
-      return double(max[i]) - double(min[i]);
+    /// \return a value in the initial range
+    T rand (Dice &dice) const {
+      return Operators::rand(rndMin, rndMax, dice);
     }
 
     /// \return the absolute distance for \p field between \p lhs and \p rhs
     /// scaled by the maximal span for this field
-    template <typename U=T>
-    std::enable_if_t<std::is_fundamental<U>::value, double>
-    distance (const U &lhs, const U &rhs) const {
-      return fabs(lhs - rhs) / span();
-    }
-
-    /// \return the absolute distance for multidimensional field between \p lhs
-    /// and \p rhs scaled by the maximal span for this field
-    template <typename U=T>
-    std::enable_if_t<utils::is_cpp_array<U>::value, double>
-    distance (const U &lhs, const U &rhs) const {
-      double d = 0;
-      uint i = 0;
-      for (auto &v: lhs)
-        d += fabs(lhs[i] - rhs[i]) / span(i), i++, (void)v;
-      return d / i;
-    }
-
-    /// \return a value in the initial range
-    /// \tparam RNG Probably a dice \see rng::AbstractDice
-    template <typename RNG, typename U=T>
-    std::enable_if_t<std::is_fundamental<U>::value, U>
-    rand (RNG &rng) const {
-      return rng(rndMin, rndMax);
-    }
-
-    /// \return a value in the initial, multidimensional, range
-    /// \tparam RNG Probably a dice \see rng::AbstractDice
-    template <typename RNG, typename U=T>
-    std::enable_if_t<utils::is_cpp_array<U>::value, U>
-    rand (RNG &rng) const {
-      U tmp;
-      uint i = 0;
-      for (auto &v: tmp)
-        v = rng(rndMin[i], rndMax[i]), i++;
-      return tmp;
+    double distance (const T &lhs, const T &rhs) const {
+      return Operators::distance(lhs, rhs, min, max);
     }
 
     /// Mutates the \p v according to the absolute bounds
-    template <typename U=T>
-    std::enable_if_t<std::is_fundamental<U>::value, void>
-    mutate (U &v, rng::AbstractDice &dice) const {
-      mutate(v, min, max, dice);
-    }
-
-    /// Mutates a single value in the multidimensional \p v
-    /// according to the absolute bounds
-    template <typename U=T>
-    std::enable_if_t<utils::is_cpp_array<U>::value, void>
-    mutate (U &a, rng::AbstractDice &dice) const {
-      uint i = dice(0ul, a.size()-1);
-      mutate(a[i], min[i], max[i], dice);
+    void mutate (T &v, Dice &dice) const {
+      Operators::mutate(v, min, max, dice);
     }
 
     /// Checks that \p v is inside the absolute bounds
-    template <typename U=T>
-    std::enable_if_t<std::is_fundamental<U>::value, bool>
-    check (U &v) const {
-      return check(v, min, max);
-    }
-
-    /// Checks that each value in \p a is inside the absolute bounds
-    template <typename U=T>
-    std::enable_if_t<utils::is_cpp_array<U>::value, bool>
-    check (U &a) const {
-      uint i = 0;
-      bool ok = true;
-      for (auto &v: a)
-        ok &= check(v, min[i], max[i]), i++;
-      return ok;
+    bool check (T &v) const {
+      return Operators::check(v, min, max);
     }
 
     /// Streams a simple, space-delimited, representation
@@ -149,46 +94,150 @@ struct MutationSettings {
       is >> junk >> b.min >> b.rndMin >> b.rndMax >> b.max >> junk;
       return is;
     }
-
-  private:
-
-    /// Mutates the integer \p v according to the absolute bounds
-    template <typename U=T>
-    static std::enable_if_t<std::is_integral<U>::value, void>
-    mutate (U &v, const U min, const U max, rng::AbstractDice &dice) {
-      assert(min <= v && v <= max);
-      if (v == min)         v = min + 1;
-      else if (v == max)    v = max - 1;
-      else                  v += dice(.5)? -1 : 1;
-    }
-
-    /// Mutates the decimal \p v according to the absolute bounds
-    template <typename U=T>
-    static std::enable_if_t<std::is_floating_point<U>::value, void>
-    mutate (U &v, const U min, const U max, rng::AbstractDice &dice) {
-      static constexpr double __MAGIC_BULLET = 1e-2;
-
-      assert(min <= v && v <= max);
-      if (min < max) {
-        rng::tndist dist (0, (max - min) * __MAGIC_BULLET, min - v, max - v, true);
-        v += dice(dist);
-      }
-    }
-
-    /// \returns whether \p v is in range [min, max]
-    template <typename U=T>
-    std::enable_if_t<std::is_fundamental<U>::value, bool>
-    static check (U &v, const U min, const U max) {
-      bool ok = true;
-      if (v < min)  v = min,  ok &= false;
-      if (max < v)  v = max,  ok &= false;
-      return ok;
-    }
   };
 
   /// Another alias type for shorter configuration files
   using MutationRates = std::map<std::string, float>;
 };
+
+/// \cond internal
+
+template <typename T>
+struct MutationSettings::BoundsOperators<T, std::enable_if_t<std::is_fundamental<T>::value>> {
+  using Dice = MutationSettings::Dice;
+
+  /// \copydoc MutationSettings::Bounds::rand
+  static T rand (T min, T max, Dice &dice) {
+    return dice(min, max);
+  }
+
+  /// \return the range of valid values for these bounds
+  static double span (double min, double max) {
+    return max - min;
+  }
+
+  /// \copydoc MutationSettings::Bounds::distance
+  static double distance (T lhs, T rhs, T min, T max) {
+    return fabs(lhs - rhs) / span(min, max);
+  }
+
+  /// \copydoc MutationSettings::Bounds::mutate
+  static void mutate (T &v, T min, T max, Dice &dice) {
+    mutate(v, min, max, dice);
+  }
+
+  /// \copydoc MutationSettings::Bounds::check
+  static bool check (T &v, T min, T max) {
+    bool ok = true;
+    if (v < min)  v = min,  ok &= false;
+    if (max < v)  v = max,  ok &= false;
+    return ok;
+  }
+
+private:
+
+  /// Mutates the integer \p v according to the absolute bounds
+  template <typename U=T>
+  static std::enable_if_t<std::is_integral<U>::value, void>
+  mutate (U &v, const U min, const U max, Dice &dice) {
+    assert(min <= v && v <= max);
+    if (v == min)         v = min + 1;
+    else if (v == max)    v = max - 1;
+    else                  v += dice(.5)? -1 : 1;
+  }
+
+  /// Mutates the decimal \p v according to the absolute bounds
+  template <typename U=T>
+  static std::enable_if_t<std::is_floating_point<U>::value, void>
+  mutate (U &v, const U min, const U max, Dice &dice) {
+    static constexpr double __MAGIC_BULLET = 1e-2;
+
+    assert(min <= v && v <= max);
+    if (min < max) {
+      rng::tndist dist (0, (max - min) * __MAGIC_BULLET, min - v, max - v, true);
+      v += dice(dist);
+    }
+  }
+};
+
+template <typename T>
+struct MutationSettings::BoundsOperators<T, std::enable_if_t<std::is_enum<T>::value>> {
+  using Dice = MutationSettings::Dice;
+  using Operator = MutationSettings::BoundsOperators<int>;
+
+  /// \return a value in the initial range
+  /// \tparam RNG Probably a dice \see rng::AbstractDice
+  static T rand (T min, T max, Dice &dice) {
+    return T(Operator::rand(int(min), int(max), dice));
+  }
+
+  static double distance (T lhs, T rhs, T min, T max) {
+    return Operator::distance(int(lhs), int(rhs), int(min), int(max));
+  }
+
+  static void mutate (T &v, T min, T max, Dice &dice) {
+    int iv = v;
+    Operator::mutate(iv, int(min), int(max), dice);
+    v = T(iv);
+  }
+
+  static bool check (T &v, T min, T max) {
+    int iv = v;
+    bool ok = Operator::check(iv, int(min), int(max));
+    v = T(iv);
+    return ok;
+  }
+};
+
+template <typename T>
+struct MutationSettings::BoundsOperators<T, std::enable_if_t<utils::is_cpp_array<T>::value>> {
+  using Dice = MutationSettings::Dice;
+  using FOperators = MutationSettings::BoundsOperators<typename T::value_type>;
+
+  /// \return a value in the initial, multidimensional, range
+  /// \tparam RNG Probably a dice \see rng::AbstractDice
+  static T rand (const T &min, const T &max, Dice &dice) {
+    T tmp;
+    uint i = 0;
+    for (auto &v: tmp)
+      v = dice(min[i], max[i]), i++;
+    return tmp;
+  }
+
+  /// \return the range of valid values for these bounds
+  static double span (const T &min, const T &max, uint i) {
+    return double(max[i]) - double(min[i]);
+  }
+
+  /// \return the absolute distance for multidimensional field between \p lhs
+  /// and \p rhs scaled by the maximal span for this field
+  static double distance (const T &lhs, const T &rhs, const T &min, const T &max) {
+    double d = 0;
+    uint i = 0;
+    for (auto &v: lhs)
+      d += FOperators::distance(lhs[i], rhs[i], min[i], max[i]), i++, (void)v;
+    return d / i;
+  }
+
+  /// Mutates a single value in the multidimensional \p v
+  /// according to the absolute bounds
+  static void mutate (T &a, const T &min, const T &max, Dice &dice) {
+    uint i = dice(0ul, a.size()-1);
+    FOperators::mutate(a[i], min[i], max[i], dice);
+  }
+
+  /// Checks that each value in \p a is inside the absolute bounds
+  static bool check (T &a, const T &min, const T &max) {
+    uint i = 0;
+    bool ok = true;
+    for (auto &v: a)
+      ok &= FOperators::check(v, min[i], max[i]), i++;
+    return ok;
+  }
+
+};
+
+/// \endcond
 
 } // end of namespace config
 

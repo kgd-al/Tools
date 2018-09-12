@@ -5,6 +5,7 @@
 
 #include <numeric>
 #include <algorithm>
+#include <regex>
 #include <sstream>
 
 #include <vector>
@@ -74,15 +75,13 @@ std::string className (void) {
   return name;
 }
 
-/// \returns The unmangled, unscope name of the template class
-/// \todo Does not play nice with e.g. foo::bar<foo::baz>
+/// \returns The unmangled, unscoped name of the template class
+/// eg foo::Bar becomes Bar and foo::Bar<foo::Baz> becomes Bar<Baz>
 template <typename T>
 std::string unscopedClassName (void) {
+  static constexpr const char * RPL = "";
   std::string name = className<T>();
-  size_t nameStart = name.find_last_of(':');
-  if (nameStart != std::string::npos)
-    return name.substr(nameStart+1);
-  else    return name;
+  return std::regex_replace(name, std::regex("([a-z]+::)+"), RPL);
 }
 
 // =============================================================================

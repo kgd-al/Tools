@@ -70,7 +70,7 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
   if (!toFile) {
     os << std::string(maxNameWidth - 4, ' ') << "file: ";
     if (!path.empty())
-      os << path;
+      os << path.string();
     else    os << "*default*";
     os << "\n";
   }

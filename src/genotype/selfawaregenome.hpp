@@ -6,9 +6,11 @@
 #include <string>
 #include <map>
 
+#include <type_traits>
 #include <functional>
 
 #include "../utils/utils.h"
+#include "../external/json.hpp"
 #include "../settings/configfile.h"
 #include "../settings/mutationbounds.hpp"
 #include "../random/dice.hpp"
@@ -61,16 +63,29 @@ class GenomeFieldInterface {
   /// Name of the field managed by this object
   std::string _name;
 
+  /// Short name of the field managed by this object
+  std::string _alias;
+
 public:
   /// Helper alias to the source of randomness
   using Dice = rng::AbstractDice;
 
   /// Create an interface for the field \p name
-  GenomeFieldInterface (std::string name) : _name(name) {}
+  GenomeFieldInterface (const std::string &name, const std::string &alias)
+    : _name(name), _alias(alias.empty() ? name : alias) {
+    if (_name.size() < _alias.size())
+      std::cerr << "WARNING: alias '" << _alias << " for field " << _name
+                << " is suspciously too long" << std::endl;
+  }
 
   /// \returns the name of the managed field
   const std::string& name (void) const {
     return _name;
+  }
+
+  /// \returns the short name of the managed field
+  const std::string& alias (void) const {
+    return _alias;
   }
 
   /// Stream the managed field to \p os
@@ -91,6 +106,15 @@ public:
 
   /// \returns Whether the corresponding field is in the valid range
   virtual bool check (G &genome) const = 0;
+
+  /// Dumps the corresponding field's value into the provided json
+  virtual void to_json (nlohmann::json &j, const G &object) const = 0;
+
+  /// Loads the corresponding field's value from the provided json
+  virtual void from_json (const nlohmann::json &j, G &object) const = 0;
+
+  /// \returns Whether the corresponding field values are equal in both objects
+  virtual bool equal (const G &lhs, const G &rhs) const = 0;
 };
 
 /// Helper type storing the various types used by the self aware genomes
@@ -134,8 +158,8 @@ protected:
 public:
   /// Builds the base interface and register this field in \p registry
   template <typename R>
-  GenomeField (const std::string &name, R &registry)
-    : GenomeFieldInterface<O> (name) {
+  GenomeField (const std::string &name, const std::string alias, R &registry)
+    : GenomeFieldInterface<O> (name, alias) {
     registry.emplace(name, *this);
   }
 
@@ -159,6 +183,18 @@ public:
     }
 
     return true;
+  }
+
+  bool equal(const O &lhs, const O &rhs) const override {
+    return get(lhs) == get(rhs);
+  }
+
+  void to_json (nlohmann::json &j, const O &object) const override {
+    j = get(object);
+  }
+
+  void from_json (const nlohmann::json &j, O &object) const override {
+    get(object) = j.get<T>();
   }
 
 protected:
@@ -187,8 +223,9 @@ public:
   /// Builds an interface for field \p name, registers it in \p registry and
   /// records the bounds object providing values for this field
   template <typename R>
-  GenomeFieldWithBounds (const std::string &name, R &registry, Bounds &bounds)
-    : GenomeField<T,O,OFFSET> (name, registry), _bounds(bounds) {}
+  GenomeFieldWithBounds (const std::string &name, const std::string &alias,
+                         R &registry, Bounds &bounds)
+    : GenomeField<T,O,OFFSET> (name, alias, registry), _bounds(bounds) {}
 
   void random (O &object, Dice &dice) const override {
     get(object) = _bounds.rand(dice);
@@ -254,8 +291,9 @@ public:
   /// Builds a genomic interface for field \p name, registers it in registry and
   /// stores the set of functions managing the associated field
   template <typename R>
-  GenomeFieldWithFunctor (const std::string &name, R &registry, Functor f)
-    : GenomeField<T,O,OFFSET> (name, registry), _functor(f) {
+  GenomeFieldWithFunctor (const std::string &name, const std::string &alias,
+                          R &registry, Functor f)
+    : GenomeField<T,O,OFFSET> (name, alias, registry), _functor(f) {
     checkFunctor(&Functor::random, "random");
     checkFunctor(&Functor::mutate, "mutate");
     checkFunctor(&Functor::cross, "cross");
@@ -433,18 +471,10 @@ public:
 // =============================================================================
 // == Evolutionary interface
 
-  /// \returns A genome with all auto-managed fields initialized to appropriate
-  /// values
-  static this_t random (Dice &dice) {
-    this_t tmp;
-    for (auto &it: _iterator) get(it).random(tmp, dice);
-    return tmp;
-  }
-
   /// Alters a single auto-managed field in the genome based on the relative
   /// mutation rates and valid bounds/generators
   void mutate (Dice &dice) {
-    mutate(static_cast<G&>(*this), dice);
+    mutate(downcast(*this), dice);
   }
 
   /// \returns the genomic distance between all auto-managed fields in both
@@ -454,24 +484,33 @@ public:
   }
 
   /// \returns the result of crossing all auto-managed fields in both arguments
-  template <typename H>
-  friend this_t cross (const H &lhs, const H &rhs, Dice &dice) {
+  friend G cross (const G &lhs, const G &rhs, Dice &dice) {
     return SelfAwareGenome<G>::cross(lhs, rhs, dice);
   }
 
   /// \returns Whether all auto-managed fields in this genome are valid
   bool check (void) {
-    return check(static_cast<G&>(*this));
+    return check(downcast(*this));
   }
 
 // =============================================================================
 // == Evolutionary interface (static version)
+
+  /// \returns A genome with all auto-managed fields initialized to appropriate
+  /// values
+  static G random (Dice &dice) {
+    G tmp;
+    for (auto &it: _iterator) get(it).random(tmp, dice);
+    tmp.randomExtension(dice);
+    return tmp;
+  }
 
   /// Static implementation of mutate(Dice)
   static void mutate (G &object, Dice &dice) {
     std::string fieldName = dice.pickOne(_mutationRates.get());
     std::cerr << "Mutated field " << fieldName << std::endl;
     _iterator.at(fieldName).get().mutate(object, dice);
+    object.mutateExtension(dice);
   }
 
   /// Static implementation of distance(G&,G&)
@@ -479,14 +518,16 @@ public:
     double d = 0;
     for (auto &it: _iterator)
       d+= get(it).distance(lhs, rhs);
+    lhs.distanceExtension(rhs, d);
     return d;
   }
 
   /// Static implementation of cross(G&,G&,Dice&)
-  static this_t cross (const G &lhs, const G &rhs, Dice &dice) {
-    this_t res;
+  static G cross (const G &lhs, const G &rhs, Dice &dice) {
+    G res;
     for (auto &it: _iterator)
       get(it).cross(lhs, rhs, res, dice);
+    res.crossExtension(lhs, rhs, dice);
     return res;
   }
 
@@ -494,28 +535,132 @@ public:
   static bool check (G &object){
     bool ok = true;
     for (auto &it: _iterator) ok &= get(it).check(object);
+    object.checkExtension(ok);
     return ok;
   }
 
 // =============================================================================
 // == Utilities
 
-  /// Stream all auto-managed fields to \p os
-  friend std::ostream& operator<< (std::ostream &os, const SelfAwareGenome &g) {
-    _details::IndentingOStreambuf indent(os);
-    os << "\n";
+  /// Shorter alias to the json type
+  using json = nlohmann::json;
+
+  /// Dump data into a json
+  friend void to_json (json &j, const G &g) {
+    for (auto &it: _iterator)
+      get(it).to_json(j[get(it).alias()], downcast(g));
+    g.to_jsonExtension(j);
+  }
+
+  /// Load data from a json
+  friend void from_json (const json &j_, G &g) {
+    std::ostringstream oss;
+    bool ok = true;
+
+    auto j = j_;
+    g.from_jsonExtension(j);
     for (auto &it: _iterator) {
-      os << it.first << ": ";
-      get(it).print(os, static_cast<const G&>(g));
-      os << "\n";
+      auto &gf = get(it);
+      auto jit = j.find(gf.alias());
+      if (jit != j.end()) {
+        gf.from_json(*jit, downcast(g));
+        j.erase(jit);
+
+      } else {
+        ok = false;
+        oss << "Unable to find field " << it.first << "\n";
+      }
     }
+
+    ok &= j.empty();
+    for (json::iterator it = j.begin(); it != j.end(); ++it)
+      oss << "Extra field " << it.key() << "\n";
+
+    g.check();
+
+    if (!ok)
+      throw std::invalid_argument(oss.str());
+  }
+
+  /// \returns a string representation of this genome's contents
+  std::string dump (uint indent = -1) {
+    return json(downcast(*this)).dump(indent);
+  }
+
+  /// Writes this genome to \p filepath
+  /// \throws std::invalid_argument if the path is not writable
+  void toFile (const std::string &filepath) {
+    std::ofstream ofs (filepath);
+    if (!ofs.is_open())
+      throw std::invalid_argument("Unable to write to " + filepath);
+
+    check();
+    ofs << dump();
+  }
+
+  /// Load a self-aware genome from provided \p filepath
+  static G fromFile (const std::string &filepath) {
+    auto s = utils::readAll(filepath);
+    auto j = json::parse(s);
+    return G(j);
+  }
+
+  /// Stream all auto-managed fields to \p os
+  friend std::ostream& operator<< (std::ostream &os, const G &g) {
+    assert(false);
+//    _details::IndentingOStreambuf indent(os);
+//    os << "\n";
+//    for (auto &it: _iterator) {
+//      os << it.first << ": ";
+//      get(it).print(os, cast(g));
+//      os << "\n";
+//    }
     return os;
+  }
+
+  /// \returns whether both arguments are equal
+  friend bool operator== (const G &lhs, const G &rhs) {
+    bool eq = true;
+    for (auto &it: _iterator)
+      eq &= (get(it).equal(downcast(lhs), downcast(rhs)));
+    lhs.equalExtension(rhs, eq);
+    return eq;
   }
 
 
 // =============================================================================
+// == End-user extensions (for manually managed fields)
+
+protected:
+  /// Called on the newly-created object
+  virtual void randomExtension (Dice&) {}
+
+  /// Called on the mutated object
+  virtual void mutateExtension (Dice&) {}
+
+  /// Called on the first object
+  virtual void distanceExtension (const G&, double &) const {}
+
+  /// Called on the child object
+  virtual void crossExtension (const G&, const G&, Dice&) {}
+
+  /// Called on the checked object
+  virtual void checkExtension (bool&) {}
+
+  /// Called on the first object
+  virtual void equalExtension (const G&, bool &) const {}
+
+  /// Called on the serialized object
+  virtual void to_jsonExtension (json &) const {}
+
+  /// Called on the deserialized object
+  /// \warning Removing all manually managed field from the json is mandatory
+  virtual void from_jsonExtension (json &) {}
+
+// =============================================================================
 // == Reserved use
 
+public:
   /// \returns a constant reference to the internal iterator object
   /// \attention This should be of little use to the end-user
   static const auto& iterator (void) {
@@ -535,6 +680,22 @@ protected:
   /// \return An immutable reference to the field manager
   static const auto& get (const typename traits::Iterator::value_type &it) {
     return it.second.get();
+  }
+
+  /// Downcasts the provided genome to its derived type
+  static G& downcast (SelfAwareGenome &g) { return static_cast<G&>(g);  }
+
+  /// Upcasts the provided genome to its base type
+  static SelfAwareGenome& upcast (G &g) { return static_cast<SelfAwareGenome&>(g);  }
+
+  /// Downcasts the provided constant genome to its derived constant type
+  static const G& downcast (const SelfAwareGenome &g) {
+    return static_cast<const G&>(g);
+  }
+
+  /// Upcasts the provided constant genome to its base type
+  static const SelfAwareGenome& upcast (const G &g) {
+    return static_cast<const SelfAwareGenome&>(g);
   }
 };
 template <typename G>
@@ -584,13 +745,13 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
 
 /// Defines the field manager for field \p NAME of type \p TYPE
 /// Instantiates an object of derived type \p ITYPE
-#define __DEFINE_GENOME_FIELD_PRIVATE(ITYPE, TYPE, NAME, ...)   \
-  namespace __NMSP {                                            \
-  const std::unique_ptr<__TARGS(GenomeField, TYPE, NAME)>       \
-    __GENOME_FIELD(NAME) =                                      \
-    std::make_unique<__TARGS(ITYPE, TYPE, NAME)>(               \
-      #NAME, __SGENOME::_iterator, __VA_ARGS__                  \
-    );                                                          \
+#define __DEFINE_GENOME_FIELD_PRIVATE(ITYPE, TYPE, NAME, ALIAS, ...)  \
+  namespace __NMSP {                                                  \
+  const std::unique_ptr<__TARGS(GenomeField, TYPE, NAME)>             \
+    __GENOME_FIELD(NAME) =                                            \
+    std::make_unique<__TARGS(ITYPE, TYPE, NAME)>(                     \
+      #NAME, ALIAS, __SGENOME::_iterator, __VA_ARGS__                 \
+    );                                                                \
   }
 
 /// Make link error if metadata is left undefined
@@ -622,23 +783,24 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
 
 /// Defines the genomic field \p NAME with type \p TYPE passing the variadic
 /// arguments to build the mutation bounds
-#define DEFINE_GENOME_FIELD_WITH_BOUNDS(TYPE, NAME, ...)            \
+#define DEFINE_GENOME_FIELD_WITH_BOUNDS(TYPE, NAME, ALIAS, ...)     \
   DEFINE_PARAMETER_FOR(__SCONFIG, __SCONFIG::B<TYPE>,               \
                        NAME##Bounds, __VA_ARGS__)                   \
-  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldWithBounds, TYPE, NAME,  \
+  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldWithBounds, TYPE,        \
+                                NAME, ALIAS,                        \
                                 __SCONFIG::NAME##Bounds.ref())
 
-/// Defines the genomic field \p NAME with type \p TYPE passing the variadic
+/// Defines the genomic field \p NAME (aka \p ALIAS) with type \p TYPE passing the variadic
 /// arguments to build the function set
-#define DEFINE_GENOME_FIELD_WITH_FUNCTOR(TYPE, NAME, F) \
-  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldWithFunctor, TYPE, NAME, F)
+#define DEFINE_GENOME_FIELD_WITH_FUNCTOR(TYPE, NAME, ALIAS, F) \
+  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldWithFunctor, TYPE, NAME, ALIAS, F)
 
 /// Defines the genomic field \p NAME with type \p TYPE as a subgenome forwarding
 /// its functions to the functor constructor
-#define DEFINE_GENOME_FIELD_AS_SUBGENOME(TYPE, NAME)  \
-  __DEFINE_GENOME_FIELD_PRIVATE(                      \
-    GenomeFieldWithFunctor, TYPE, NAME,               \
-    GENOME_FIELD_FUNCTOR(TYPE, NAME)::buildFromSubgenome() \
+#define DEFINE_GENOME_FIELD_AS_SUBGENOME(TYPE, NAME, ALIAS) \
+  __DEFINE_GENOME_FIELD_PRIVATE(                            \
+    GenomeFieldWithFunctor, TYPE, NAME, ALIAS,              \
+    GENOME_FIELD_FUNCTOR(TYPE, NAME)::buildFromSubgenome()  \
   )
 
 /// Helper alias to the type of a functor object for a specific, auto-managed,

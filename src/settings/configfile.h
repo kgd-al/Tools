@@ -100,7 +100,7 @@ std::string verbosityValues (void);
 
 /// Defines a config value of type \p TYPE name \p NAME iff the NDEBUG macro is undefined
 #define DEFINE_DEBUG_PARAMETER(TYPE, NAME, ...) \
-  __DEFINE_PARAMETER_PRIVATE(TYPE, NAME, __VA_ARGS__)
+  DEFINE_PARAMETER_FOR(CFILE, TYPE, NAME, __VA_ARGS__)
 
 #else
 
@@ -299,7 +299,7 @@ protected:
 
     /// Prints out the current filename for this config file
     std::ostream& output (std::ostream &os) const override {
-      return os << C::_path;
+      return os << C::_path.string();
     }
 
     /// Delegate printing out this wrapper to the underlying configuration file
@@ -380,7 +380,12 @@ public:
   /// If the verbosity value \p v is greater than quiet the resulting configuration is displayed.
   /// If the verbosity is PARANOID a confirmation will be required
   static void setupConfig(std::string inFilename = "", Verbosity v = Verbosity::QUIET) {
-    if (inFilename == "auto")   inFilename = defaultPath().string();
+    if (inFilename == "auto") {
+      inFilename = defaultPath().string();
+      if (!stdfs::exists(defaultPath()))
+        printConfig("");
+    }
+
     if (inFilename.size() > 0)  readConfig(inFilename);
 
     if (v >= Verbosity::SHOW)
@@ -410,7 +415,7 @@ public:
       return false;
     }
 
-    std::cout << "Writing " << name() << " and subconfig files at " << _path << std::endl;
+    std::cout << "Writing " << _path << std::endl;
     printConfig(ofs);
     return true;
   }
