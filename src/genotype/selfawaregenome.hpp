@@ -614,6 +614,7 @@ public:
       get(it).print(os, g);
       os << "\n";
     }
+    g.to_streamExtension(os);
     return os;
   }
 
@@ -655,6 +656,9 @@ protected:
   /// Called on the deserialized object
   /// \warning Removing all manually managed field from the json is mandatory
   virtual void from_jsonExtension (json &) {}
+
+  /// Called on the streamed object
+  virtual void to_streamExtension (std::ostream &) const {}
 
 // =============================================================================
 // == Reserved use
