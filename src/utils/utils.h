@@ -242,7 +242,6 @@ std::string readAll (const std::string &filename);
 /// \return the contents of \p ifs as a single string
 std::string readAll (std::ifstream &ifs);
 
-
 // =============================================================================
 
 /// Helper structure for accessing current time

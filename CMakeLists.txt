@@ -33,7 +33,6 @@ endif()
 
 set(SOURCES
     "src/genotype/selfawaregenome.hpp"
-#    "src/genotype/selfawaregenome.cpp"
 
     "src/random/dice.hpp"
 
@@ -45,6 +44,7 @@ set(SOURCES
 
     "src/utils/utils.h"
     "src/utils/utils.cpp"
+    "src/utils/shell.hpp"
 )
 set (EXTERNALS
     "src/external/cxxopts.hpp"
