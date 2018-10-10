@@ -110,7 +110,7 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
   std::regex regSeparator = std::regex ("=+");
   std::regex regConfigFileName = std::regex("=+ ([[:alnum:]]+) =+");
   std::regex regDataRow = std::regex(" *([[:alnum:]_]+): ?(.+)");
-  std::regex regMapField = std::regex("map\\([[:alnum:]_: ]+, [[:alnum:]_: ]+\\)");
+  std::regex regMapField = std::regex("map\\([[:alnum:]_:<,> ]+, [[:alnum:]_:<> ]+\\)");
 
   // Storage space for matches in regexp
   std::smatch matches;
@@ -164,7 +164,7 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
           if (std::regex_match(value, regMapField)) {
             value.clear();
             std::string buffer;
-            while ((is.peek() != '[') && getline(is, buffer))
+            while (getline(is, buffer) && buffer != "}")
               value.append(buffer + "\n");
           }
 

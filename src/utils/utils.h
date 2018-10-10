@@ -84,6 +84,17 @@ std::string unscopedClassName (void) {
   return std::regex_replace(name, std::regex("([a-z]+::)+"), RPL);
 }
 
+/// \returns The innermost template argument of the provided string
+/// eg "foo::Bar<foo::Baz>" becomes "Baz"
+std::string innermostTemplateArgument (const std::string &cName);
+
+/// \returns The innermost template argument of the provided class
+/// eg foo::Bar<foo::Baz> becomes "Baz"
+template <typename T>
+std::string innermostTemplateArgument (void) {
+  return innermostTemplateArgument(unscopedClassName<T>());
+}
+
 // =============================================================================
 // == Personnal type traits
 

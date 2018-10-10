@@ -370,7 +370,7 @@ protected:
 public:
   /// Return the name of this ConfigFile's actual type (the template argument)
   static const std::string& name (void) {
-    static const std::string _localName = utils::unscopedClassName<F>();
+    static const std::string _localName = utils::innermostTemplateArgument<F>();
     return _localName;
   }
 
