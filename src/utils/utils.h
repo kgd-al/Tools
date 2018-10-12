@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include <vector>
+#include <array>
 #include <map>
 
 /*!
@@ -117,7 +118,7 @@ struct is_stl_container_like {
     decltype(cpt->end()) * = nullptr,
     typename A::iterator * pi = nullptr,
     typename A::const_iterator * pci = nullptr,
-    typename A::value_type * pv = nullptr) {
+    typename A::value_type * /*pv*/ = nullptr) {
 
     typedef typename A::iterator iterator;
     typedef typename A::const_iterator const_iterator;

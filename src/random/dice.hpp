@@ -120,10 +120,18 @@ class AbstractDice {
 public:
 
   /// The type used as a seed
-  using Seed_t = ulong;
+  using Seed_t = unsigned long;
 
   /// The underlying random number generator
   using BaseRNG_t = std::mt19937;
+
+  /// \return The current time, as viewed by the system, in milli seconds.
+  /// Used internally as the default seed for dices
+  static auto currentMilliTime (void) {
+    return std::chrono::duration_cast<std::chrono::milliseconds >(
+      std::chrono::high_resolution_clock::now().time_since_epoch()
+    ).count();
+  }
 
 protected:
   /// Random number generator enriched with its seed
@@ -289,14 +297,6 @@ public:
     t[0] = sinphi * cos(theta);
     t[1] = sinphi * sin(theta);
     t[2] = cosphi;
-  }
-
-  /// \return The current time, as viewed by the system, in milli seconds.
-  /// Used internally as the default seed for dices
-  static ulong currentMilliTime (void) {
-    return std::chrono::duration_cast<std::chrono::milliseconds >(
-          std::chrono::high_resolution_clock::now().time_since_epoch()
-          ).count();
   }
 
   /// Write current seed
