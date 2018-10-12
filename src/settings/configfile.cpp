@@ -110,7 +110,7 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
   std::regex regSeparator = std::regex ("=+");
   std::regex regConfigFileName = std::regex("=+ ([[:alnum:]]+) =+");
   std::regex regDataRow = std::regex(" *([[:alnum:]_]+): ?(.+)");
-  std::regex regMapField = std::regex("map\\([[:alnum:]_:<,> ]+, [[:alnum:]_:<> ]+\\)");
+  std::regex regMapField = std::regex("map\\([[:alnum:]_:<,> ]+, [[:alnum:]_:<> ]+\\) \\{");
 
   // Storage space for matches in regexp
   std::smatch matches;
@@ -170,14 +170,25 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
 
           // Find ConfigValue with this name and make it parse the data
           auto fieldIt = it.find(field);
-          if (fieldIt != it.end())
-            ok &= fieldIt->second.input(value, IConfigValue::FILE);
+          if (fieldIt != it.end()) {
+            bool thisOK = fieldIt->second.input(value, IConfigValue::FILE);
+            ok &= thisOK;
+            if (!thisOK)
+              std::cerr << "Error parsing field '" << field << " with value '"
+                        << value << "' in config file " << name << std::endl;
+          }
 
-          else // Abort if could not find
+          else {  // Error if could not find
+            std::cerr << "Could not find field '" << field << "' in config file"
+                      << name << std::endl;
             ok = false;
+          }
 
-        } else // Abort if current line is not a valid data field
+        } else {  // Error if current line is not a valid data field
+          std::cerr << "Could not parse '" << line << "' in config file"
+                    << name << std::endl;
           ok = false;
+        }
       }
       break;
 
