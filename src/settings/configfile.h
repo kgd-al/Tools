@@ -376,7 +376,7 @@ protected:
 public:
   /// Return the name of this ConfigFile's actual type (the template argument)
   static const std::string& name (void) {
-    static const std::string _localName = utils::unscopedClassName<F>();
+    static const std::string _localName = utils::innermostTemplateArgument<F>();
     return _localName;
   }
 
@@ -386,11 +386,8 @@ public:
   /// If the verbosity value \p v is greater than quiet the resulting configuration is displayed.
   /// If the verbosity is PARANOID a confirmation will be required
   static void setupConfig(std::string inFilename = "", Verbosity v = Verbosity::QUIET) {
-    if (inFilename == "auto") {
+    if (inFilename == "auto")
       inFilename = defaultPath().string();
-      if (!stdfs::exists(defaultPath()))
-        printConfig("");
-    }
 
     if (inFilename.size() > 0)  readConfig(inFilename);
 
@@ -436,6 +433,10 @@ public:
     std::ifstream ifs (path);
     bool ok = read(config_iterator(), name(), ifs);
     _path = path;
+
+    if (!stdfs::exists(path))
+      printConfig("");
+
     return ok;
   }
 

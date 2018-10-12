@@ -269,8 +269,10 @@ public:
 
   /// \return The enumerator associated with this name
   /// \throws std::out_of_range if no such enumerator exists
-  static E getValue (const std::string &name) {
-    return getMaps().nameToValue.at(utils::trimLeading(name));
+  static E getValue (std::string name) {
+    name = utils::trimLeading(name);
+    std::replace(name.begin(), name.end(), '_', ' ');
+    return getMaps().nameToValue.at(name);
   }
 
   /// Asserts: 0 &le; toUnderlying(value) < size()

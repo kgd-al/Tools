@@ -56,6 +56,15 @@ std::string readAll (const std::string &filename) {
   return readAll (ifs);
 }
 
+std::string innermostTemplateArgument (const std::string &cName) {
+  auto innermostOpening = cName.find_last_of("<"),
+       innermostClosing = cName.find_first_of(">");
+  if (innermostOpening != std::string::npos && innermostClosing != std::string::npos)
+    return cName.substr(innermostOpening+1, innermostClosing - innermostOpening - 1);
+  else
+    return cName;
+}
+
 std::string readAll (std::ifstream &ifs) {
   std::stringstream ss;
   if (!ifs)

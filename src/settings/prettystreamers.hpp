@@ -171,6 +171,13 @@ struct PrettyReader<std::set<V,C>> {
 
 
 // =============================================================================
+
+/// Specialization for prettier string class name printing
+template <>
+inline std::string utils::className<std::string> (void) {
+  return "std::string";
+}
+
 /// Pretty maps writer
 template <typename K, typename V>
 struct PrettyWriter<std::map<K,V>> {
@@ -185,7 +192,10 @@ struct PrettyWriter<std::map<K,V>> {
       if (width > maxWidth)
         maxWidth = width;
     }
-    os << "map(" << utils::className<K>() << ", " << utils::className<V>() << ")\n";
+    os << "map("
+       << utils::className<K>()
+       << ", "
+       << utils::className<V>() << ") {\n";
     for (auto &p: map) {
       std::ostringstream oss;
       keyPrinter(oss, p.first);
@@ -194,6 +204,7 @@ struct PrettyWriter<std::map<K,V>> {
       PrettyWriter<V>()(os, p.second);
       os << "\n";
     }
+    os << "}";
   }
 };
 
