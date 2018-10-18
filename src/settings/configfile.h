@@ -6,8 +6,12 @@
 #include <fstream>
 
 /// \todo Remove experimental when gaining access to a recent enough version of g++
+
 #include <experimental/filesystem>
 namespace stdfs = std::experimental::filesystem;
+
+//#include <experimental/filesystem>
+//namespace stdfs = std::experimental::filesystem;
 
 #include "../utils/utils.h"
 #include "prettystreamers.hpp"
@@ -224,7 +228,7 @@ protected:
     T _value;
 
     /// Run-time knowledge of the stored type
-    const std::string& typeName (void) const {
+    const std::string& typeName (void) const override {
       static const std::string _localTypeName = utils::className<T>();
       return _localTypeName;
     }
@@ -268,6 +272,8 @@ protected:
     /// Build and register a config file named \p name
     TSubconfigFile (ConfigIterator &registrationDeck, const char *name)
       : IConfigValue(registrationDeck, name) {}
+
+    virtual ~TSubconfigFile(void) = default;
 
     /// Is indeed a config file
     bool isConfigFile(void) const override {
@@ -382,7 +388,7 @@ public:
 ///
 template <class F>
 class ConfigFile : public _details::AbstractConfigFile {
-  friend class SubconfigFile<F>;
+  friend struct SubconfigFile<F>;
 protected:
 
   /// Default folder for storing configuration files

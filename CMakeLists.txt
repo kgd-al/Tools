@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4)
 
 ####################################################################################################
 ## General settings
@@ -6,12 +6,7 @@ cmake_minimum_required(VERSION 2.8)
 
 project("tools")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")#"-ftime-report")
-
-if (${CMAKE_VERSION} VERSION_LESS 3.1)
-    set(CMAKE_CXX_FLAGS "-std=c++17 ${CMAKE_CXX_FLAGS}")
-else ()
-    set(CMAKE_CXX_STANDARD 17)
-endif ()
+set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
@@ -23,8 +18,12 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9")
     set(FS_LIB stdc++fs)
-    message(STATUS "> Using experimental std 17 filesystem support")
+    message(STATUS "> Using experimental g++ std 17 filesystem support")
   endif()
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  link_directories(/usr/local/opt/llvm/lib/)
+  set(FS_LIB c++fs)
+  message(STATUS "> Using experimental clang std 17 filesystem support")
 endif()
 
 ####################################################################################################
@@ -53,7 +52,6 @@ set (EXTERNALS
 add_library(tools STATIC ${SOURCES} ${EXTERNALS})
 target_link_libraries(tools ${FS_LIB})
 
-
 if (BUILD_TESTS)
     # Test self-aware genomes
     add_executable(
@@ -79,7 +77,10 @@ if(WITH_DEBUG_INFO)
     # Enable small memory error detector (fuse=gold fixes linker errors)
 #    set(ASAN "-fsanitize=thread")
     set(ASAN "-fsanitize=address -fsanitize=undefined")
-    set(CMAKE_CXX_FLAGS "${ASAN} -fno-omit-frame-pointer -fuse-ld=gold ${CMAKE_CXX_FLAGS}")
+    string(APPEND CMAKE_CXX_FLAGS " ${ASAN} -fno-omit-frame-pointer")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        string(APPEND CMAKE_CXX_FLAGS " -fuse-ld=gold")
+    endif()
 endif()
 
 option(BUILD_TESTS "Sets whether to build the tests executables" OFF)
@@ -115,6 +116,7 @@ if (GENERATE_HELP)
     endif()
 
     doxygen_add_docs(docs ${SOURCES} COMMENT "Generating documentation")
+    set_target_properties(docs PROPERTIES C_STANDARD 17 C_STANDARD_REQUIRED ON)
 endif()
 
 
@@ -124,6 +126,7 @@ endif()
 
 install(TARGETS tools ARCHIVE DESTINATION lib/kgd)
 
+# Install headers
 install(
     DIRECTORY "${CMAKE_SOURCE_DIR}/src/"
     DESTINATION include/kgd
@@ -136,7 +139,20 @@ install(
         PERMISSIONS
             OWNER_EXECUTE OWNER_READ
             GROUP_EXECUTE GROUP_READ
+        PATTERN "*/external/*" EXCLUDE
 )
+
+# Force symlink dereference during installation
+foreach(sym_link ${EXTERNALS})
+    get_filename_component(path ${sym_link} REALPATH)
+    message(STATUS "Installing ${path} instead of ${sym_link}")
+    install(FILES ${path}
+            DESTINATION include/kgd/external
+            PERMISSIONS
+                OWNER_EXECUTE OWNER_READ
+                GROUP_EXECUTE GROUP_READ
+    )
+endforeach()
 
 if (GENERATE_HELP)
     install(

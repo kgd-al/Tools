@@ -48,17 +48,17 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
   if (toFile) thisDir = path.parent_path();
 
   // Finding max field name width
-  uint maxNameWidth = 0;
+  size_t maxNameWidth = 0;
   for (auto &p: iterator) {
-    uint l = p.first.length();
+    size_t l = p.first.length();
     if (l > maxNameWidth)
       maxNameWidth = l;
   }
 
   // Generate/print header
-  uint prefixSize = toFile ? 0 : (*iterator.begin()).second.prefix().length();
+  size_t prefixSize = toFile ? 0 : (*iterator.begin()).second.prefix().length();
   const std::string title = std::string(" ") + name + std::string(" ");
-  uint halfTitleSize = (title.length()-1)/2;
+  size_t halfTitleSize = (title.length()-1)/2;
   if (prefixSize + maxNameWidth <= halfTitleSize) maxNameWidth = halfTitleSize - prefixSize + 1;
 
   const std::string titlePrefix = std::string(prefixSize + maxNameWidth - (title.length()-1)/2, '=');

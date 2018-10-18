@@ -7,6 +7,7 @@
 #include <random>
 
 #include "../random/dice.hpp"
+#include "../utils/utils.h"
 
 namespace config {
 
@@ -127,7 +128,7 @@ struct MutationSettings::BoundsOperators<T, std::enable_if_t<std::is_fundamental
 
   /// \copydoc MutationSettings::Bounds::mutate
   static void mutate (T &v, T min, T max, Dice &dice) {
-    mutate(v, min, max, dice);
+    _mutate(v, min, max, dice);
   }
 
   /// \copydoc MutationSettings::Bounds::check
@@ -143,7 +144,7 @@ private:
   /// Mutates the integer \p v according to the absolute bounds
   template <typename U=T>
   static std::enable_if_t<std::is_integral<U>::value, void>
-  mutate (U &v, const U min, const U max, Dice &dice) {
+  _mutate (U &v, const U min, const U max, Dice &dice) {
     assert(min <= v && v <= max);
     if (v == min)         v = min + 1;
     else if (v == max)    v = max - 1;
@@ -153,7 +154,7 @@ private:
   /// Mutates the decimal \p v according to the absolute bounds
   template <typename U=T>
   static std::enable_if_t<std::is_floating_point<U>::value, void>
-  mutate (U &v, const U min, const U max, Dice &dice) {
+  _mutate (U &v, const U min, const U max, Dice &dice) {
     static constexpr double __MAGIC_BULLET = 1e-2;
 
     assert(min <= v && v <= max);

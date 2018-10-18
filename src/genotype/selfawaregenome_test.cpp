@@ -16,6 +16,7 @@ namespace genotype {
 class SELF_AWARE_GENOME(InternalTrivial) {
 public:
   InternalTrivial(void) {}
+  virtual ~InternalTrivial(void) = default;
 
   DECLARE_GENOME_FIELD(float, floatField)
 };
@@ -24,7 +25,7 @@ public:
 
 // =============================================================================
 // trivialconfig.h
-namespace genotype { struct InternalTrivial; }
+namespace genotype { class InternalTrivial; }
 namespace config {
 template <>
 struct SAG_CONFIG_FILE(InternalTrivial) {
@@ -62,7 +63,7 @@ public:
 
 // =============================================================================
 // complexconfig.h
-namespace genotype { struct InternalComplex; }
+namespace genotype { class InternalComplex; }
 namespace config {
 template <>
 struct SAG_CONFIG_FILE(InternalComplex) {
@@ -83,7 +84,7 @@ static const auto stringFunctor = [] {
 
   GENOME_FIELD_FUNCTOR(std::string, stringField) functor {};
   functor.random =
-      [] (auto &dice) { return std::string(dice(1,2), '#'); };
+      [] (auto &dice) { return std::string(dice(1u,2u), '#'); };
 
   functor.mutate =
       [] (auto &s, auto &dice) { s += dice(min, max); };
@@ -147,9 +148,10 @@ std::istream& operator>> (std::istream &is, Enum &e) {
   return is;
 }
 
-class SELF_AWARE_GENOME(External) {
+struct SELF_AWARE_GENOME(External) {
 public:
   External(void) {}
+  virtual ~External(void) = default;
 
   DECLARE_GENOME_FIELD(int, intField)
   DECLARE_GENOME_FIELD(std::vector<InternalTrivial>, vectorField)
