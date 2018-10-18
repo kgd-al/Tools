@@ -319,6 +319,47 @@ protected:
     return value.output(os);
   }
 
+  /// Result of reading a config file from an input stream
+  enum ReadResult {
+    OK = 0, ///< No problem
+
+    /// [FATAL] Reading from a different config file
+    CONFIG_FILE_TYPE_MISMATCH = 1,
+
+    /// [ERROR] Invalid input line
+    LINE_INVALID_FORMAT = 2,
+
+    /// [ERROR] Provided field was not recognized
+    FIELD_UNKNOWN_ERROR = 4,
+
+    /// [ERROR] Field parsing was unsuccessful
+    FIELD_PARSE_ERROR = 8,
+
+    /// [WARNING] Could not find a value for a field
+    FIELD_MISSING_ERROR = 16
+  };
+
+  /// Read results can be combined
+  inline friend ReadResult operator| (ReadResult lhs, ReadResult rhs) {
+    using RR_t = std::underlying_type<ReadResult>::type;
+    return static_cast<ReadResult>(
+      static_cast<RR_t>(lhs) | static_cast<RR_t>(rhs)
+    );
+  }
+
+  /// Read results can be combined-assigned
+  inline friend ReadResult& operator|= (ReadResult &flags, ReadResult flag) {
+    return flags = flags | flag;
+  }
+
+  /// Read results can be bitwise observed
+  inline friend ReadResult operator& (ReadResult lhs, ReadResult rhs) {
+    using RR_t = std::underlying_type<ReadResult>::type;
+    return static_cast<ReadResult>(
+      static_cast<RR_t>(lhs) & static_cast<RR_t>(rhs)
+    );
+  }
+
 public:
   /// Write config values for \p name as described in \p it to the stream \p os.
   /// If \p os is a filestream \p filename then contains the corresponding path
@@ -326,7 +367,9 @@ public:
                      std::ostream &os);
 
   /// Read config values for \p name into \p it from the provided stream \p is
-  static bool read (ConfigIterator &it, const std::string &name, std::istream &is);
+  static ReadResult read (ConfigIterator &it,
+                          const std::string &name,
+                          std::istream &is);
 };
 
 } // end of namespace _details
@@ -399,7 +442,8 @@ public:
   /// If \p path is empty, the default path is used @see defaultPath
   /// If only a directory is provided, the default filename is used @see defaultFilename
   /// Parent directories are created as needed
-  static bool printConfig(stdfs::path path) {
+  static bool printConfig(stdfs::path path,
+                          const std::string &header = "Writing") {
     if (path.empty()) _path = defaultPath();
 
     else if (path.extension() != EXT)
@@ -412,7 +456,7 @@ public:
       return false;
     }
 
-    std::cout << "Writing " << _path << std::endl;
+    std::cout << header << " " << _path << std::endl;
     printConfig(ofs);
     return true;
   }
@@ -425,13 +469,16 @@ public:
   /// Load configuration data stored at path
   static bool readConfig (const stdfs::path &path) {
     std::ifstream ifs (path);
-    bool ok = read(config_iterator(), name(), ifs);
+    ReadResult res = read(config_iterator(), name(), ifs);
     _path = path;
 
     if (!stdfs::exists(path))
-      printConfig("");
+      printConfig("", "Writing default config to");
 
-    return ok;
+    else if ((res & FIELD_MISSING_ERROR) != OK)
+      printConfig(path, "Updating");
+
+    return res == OK;
   }
 
   /// Access a configuration value by its name
