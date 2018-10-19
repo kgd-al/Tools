@@ -12,7 +12,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 
 ####################################################################################################
-## Managing g++ support of std 17 filesystem
+## Managing uneven support of std 17 filesystem
 ####################################################################################################
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

@@ -309,10 +309,14 @@ protected:
     }
 
     /// Delegate printing out this wrapper to the underlying configuration file
-    void printConfig(const std::string &path) { C::printConfig(path);   }
+    void printConfig(const std::string &path) override {
+      C::printConfig(path);
+    }
 
     /// Delegate printing out this wrapper to the underlying configuration file
-    void printConfig(std::ostream &os) {        C::printConfig(os);     }
+    void printConfig(std::ostream &os) override {
+      C::printConfig(os);
+    }
 
     /// Delegate reading into this wrapper to the underlying configuration file
     bool performInput (const std::string &s) override {

@@ -505,6 +505,8 @@ public:
     return tmp;
   }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-var-template"
   /// Static implementation of mutate(Dice)
   static void mutate (G &object, Dice &dice) {
     std::string fieldName = dice.pickOne(_mutationRates.get());
@@ -512,6 +514,7 @@ public:
     _iterator.at(fieldName).get().mutate(object, dice);
     object.mutateExtension(dice);
   }
+#pragma clang diagnostic pop
 
   /// Static implementation of distance(G&,G&)
   static double distance (const G &lhs, const G &rhs) {
@@ -701,6 +704,7 @@ protected:
     return static_cast<const SelfAwareGenome&>(g);
   }
 };
+
 template <typename G>
 typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
 
