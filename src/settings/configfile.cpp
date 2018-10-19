@@ -103,7 +103,11 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
 }
 
 enum State { START, HEADER, BODY, END };
-bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::istream &is) {
+AbstractConfigFile::ReadResult
+AbstractConfigFile::read(ConfigIterator &it,
+                         const std::string &name,
+                         std::istream &is) {
+
   // Regular expressions for parsing file content
   std::regex regEmpty = std::regex("[[:space:]]*");
   std::regex regComment = std::regex("#.*");
@@ -122,7 +126,10 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
   State state = START;
 
   // No problem (for now)
-  bool ok = true;
+  ReadResult res = OK;
+
+  std::set<std::string> expectedFields;
+  for (const auto &f: it) expectedFields.insert(f.first);
 
   // Read another line
   while (std::getline(is, line) && state != END) {
@@ -137,7 +144,7 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
         if (matches.size() > 1 && matches[1] == name)
           state = HEADER;
         else {
-          ok = false;
+          res |= CONFIG_FILE_TYPE_MISMATCH;
           throw std::invalid_argument(
                 std::string("Wrong config file type. Expected '")
                 + name + std::string("' got '") + matches[1].str() + "'"
@@ -171,23 +178,25 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
           // Find ConfigValue with this name and make it parse the data
           auto fieldIt = it.find(field);
           if (fieldIt != it.end()) {
-            bool thisOK = fieldIt->second.input(value, IConfigValue::FILE);
-            ok &= thisOK;
-            if (!thisOK)
+            bool ok = fieldIt->second.input(value, IConfigValue::FILE);
+            expectedFields.erase(fieldIt->first);
+            if (!ok) {
+              res |= FIELD_PARSE_ERROR;
               std::cerr << "Error parsing field '" << field << " with value '"
                         << value << "' in config file " << name << std::endl;
+            }
           }
 
           else {  // Error if could not find
             std::cerr << "Could not find field '" << field << "' in config file"
                       << name << std::endl;
-            ok = false;
+            res |= FIELD_UNKNOWN_ERROR;
           }
 
         } else {  // Error if current line is not a valid data field
           std::cerr << "Could not parse '" << line << "' in config file"
                     << name << std::endl;
-          ok = false;
+          res |= LINE_INVALID_FORMAT;
         }
       }
       break;
@@ -197,8 +206,15 @@ bool AbstractConfigFile::read(ConfigIterator &it, const std::string &name, std::
     }
   }
 
+  if (!expectedFields.empty()) {
+    std::cerr << "Could not find a value for field(s):\n";
+    for (const std::string &f: expectedFields)
+      std::cerr << "\t'" << f << "'\n";
+    res |= FIELD_MISSING_ERROR;
+  }
+
   // Notify
-  return ok;
+  return res;
 }
 
 
