@@ -188,13 +188,13 @@ AbstractConfigFile::read(ConfigIterator &it,
           }
 
           else {  // Error if could not find
-            std::cerr << "Could not find field '" << field << "' in config file"
-                      << name << std::endl;
+            std::cerr << "Could not find field '" << field
+                      << "' in config file " << name << std::endl;
             res |= FIELD_UNKNOWN_ERROR;
           }
 
         } else {  // Error if current line is not a valid data field
-          std::cerr << "Could not parse '" << line << "' in config file"
+          std::cerr << "Could not parse '" << line << "' in config file "
                     << name << std::endl;
           res |= LINE_INVALID_FORMAT;
         }
