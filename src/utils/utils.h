@@ -162,6 +162,29 @@ template <class T, std::size_t N>
 struct is_cpp_array<std::array<T,N>> : std::true_type {};
 
 // =============================================================================
+// == Reversed iterable
+// == Credit goes to Prikso NAI @https://stackoverflow.com/a/28139075
+
+/// \cond internal
+
+/// Type wrapper for a reverse-iterated standard container
+template <typename T>
+struct reversion_wrapper { T& iterable; };
+
+/// Mapping rbegin to begin for reverse iteration
+template <typename T>
+auto begin (reversion_wrapper<T> w) { return std::rbegin(w.iterable); }
+
+/// Mapping rend to end for reverse iteration
+template <typename T>
+auto end (reversion_wrapper<T> w) { return std::rend(w.iterable); }
+/// \endcond
+
+/// Reverse iterator for painless injection in for-range loops
+template <typename T>
+reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
+
+// =============================================================================
 // == Stream operators
 
 /// Stream values from a std::array<...>
