@@ -169,7 +169,7 @@ struct is_cpp_array<std::array<T,N>> : std::true_type {};
 
 /// Type wrapper for a reverse-iterated standard container
 template <typename T>
-struct reversion_wrapper { T& iterable; };
+struct reversion_wrapper {  T& iterable; /*!< The iterable container */ };
 
 /// Mapping rbegin to begin for reverse iteration
 template <typename T>
