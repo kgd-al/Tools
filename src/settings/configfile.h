@@ -345,8 +345,11 @@ protected:
     /// [ERROR] Field parsing was unsuccessful
     FIELD_PARSE_ERROR = 8,
 
+    /// [ERROR] Subconfig file got errors
+    SUBCONFIG_FILE_ERROR = 16,
+
     /// [WARNING] Could not find a value for a field
-    FIELD_MISSING_ERROR = 16
+    FIELD_MISSING_ERROR = 32
   };
 
   /// Read results can be combined

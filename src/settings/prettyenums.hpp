@@ -272,7 +272,14 @@ public:
   static E getValue (std::string name) {
     name = utils::trimLeading(name);
     std::replace(name.begin(), name.end(), '_', ' ');
-    return getMaps().nameToValue.at(name);
+    try {
+      return getMaps().nameToValue.at(name);
+    } catch (std::out_of_range&) {
+      std::ostringstream oss;
+      oss << "'" << name << "' is not a valid enumerator for '"
+          << EnumUtils::name();
+      throw std::out_of_range(oss.str());
+    }
   }
 
   /// Asserts: 0 &le; toUnderlying(value) < size()

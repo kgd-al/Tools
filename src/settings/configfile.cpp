@@ -181,9 +181,15 @@ AbstractConfigFile::read(ConfigIterator &it,
             bool ok = fieldIt->second.input(value, IConfigValue::FILE);
             expectedFields.erase(fieldIt->first);
             if (!ok) {
-              res |= FIELD_PARSE_ERROR;
-              std::cerr << "Error parsing field '" << field << " with value '"
-                        << value << "' in config file " << name << std::endl;
+              if (fieldIt->second.isConfigFile()) {
+                res |= SUBCONFIG_FILE_ERROR;
+                std::cerr << "Subconfig file '" << field << " of '" << name
+                          << " had errors" << std::endl;
+              } else {
+                res |= FIELD_PARSE_ERROR;
+                std::cerr << "Error parsing field '" << field << " with value '"
+                          << value << "' in config file " << name << std::endl;
+              }
             }
           }
 
