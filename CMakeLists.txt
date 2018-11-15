@@ -171,6 +171,12 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include/)
 
 set(${PROJECT_NAME}_LIBRARIES
     ${FS_LIB}
-    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)\n"
+    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>)
+
+set(${PROJECT_NAME}_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+if(NOT \${${PROJECT_NAME}_BUILD_TYPE} STREQUAL \${CMAKE_BUILD_TYPE})
+    message(FATAL_ERROR \"Mismatching build version!
+        Linking against '\${${PROJECT_NAME}_BUILD_TYPE}' while using '\${CMAKE_BUILD_TYPE}'\")
+endif()\n"
 )
 install(FILES ${CONFIG} DESTINATION cmake)

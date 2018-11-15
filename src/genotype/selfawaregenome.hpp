@@ -461,7 +461,7 @@ protected:
   /// Alias to helper type traits
   using traits = _details::SAG_type_traits<G>;
 
-  /// \copydoc _details::SAG_type_traits::Dice
+  /// Helper alias to the source of randomness
   using Dice = typename traits::Dice;
 
 public:
@@ -705,6 +705,7 @@ protected:
 template <typename G>
 typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
 
+/// \cond internal
 template <typename T, typename O, T O::*F>
 typename _details::GenomeFieldWithFunctor<T,O,F>::Functor
 _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
@@ -717,9 +718,6 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
   f.check = static_cast<bool(*)(T&)>(T::check);
   return f;
 }
-
-
-/// \cond internal
 
 /// The namespace for genetic material
 #define __NMSP genotype

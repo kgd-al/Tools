@@ -17,6 +17,7 @@ namespace _details {
 // =================================================================================================
 // Non-template config file base
 
+/// \cond internal
 const std::map<AbstractConfigFile::IConfigValue::Origin, std::string>
 AbstractConfigFile::IConfigValue::_prefixes = [] {
   using Origin = AbstractConfigFile::IConfigValue::Origin;
@@ -264,10 +265,7 @@ void AbstractConfigFile::IConfigValue::checkEnv (const char *name) {
     input(utils::unquote(env), ENVIRONMENT);
 }
 
-
-// =================================================================================================
-// Template config file generic functions
-
+/// \endcond
 
 } // end of namespace _details
 
