@@ -781,7 +781,8 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
     _details::GenomeField<                      \
         TYPE, this_t, &this_t::NAME             \
     >> __FIELD_MD(NAME);                        \
-  __ASSERT_METADATA_EXISTS(NAME)
+  __ASSERT_METADATA_EXISTS(NAME)                \
+  enum {}
 
 /// Defines the genomic field \p NAME with type \p TYPE passing the variadic
 /// arguments to build the mutation bounds
