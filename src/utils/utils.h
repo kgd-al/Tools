@@ -8,8 +8,9 @@
 #include <regex>
 #include <sstream>
 
-#include <vector>
 #include <array>
+#include <vector>
+#include <set>
 #include <map>
 
 /*!
@@ -161,6 +162,7 @@ struct is_cpp_array<T[N]> : std::true_type {};
 template <class T, std::size_t N>
 struct is_cpp_array<std::array<T,N>> : std::true_type {};
 
+
 // =============================================================================
 // == Reversed iterable
 // == Credit goes to Prikso NAI @https://stackoverflow.com/a/28139075
@@ -187,6 +189,16 @@ reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
 // =============================================================================
 // == Stream operators
 
+/// Throws an exception of type T with the message built from the variadic
+/// arguments
+template <typename T, typename... ARGS>
+void doThrow (ARGS... args) {
+  std::ostringstream oss;
+  using expander = int[];
+  (void)expander{0, (void(oss << std::forward<ARGS>(args)),0)...};
+  throw T(oss.str());
+}
+
 /// Stream values from a std::array<...>
 template <typename T, size_t SIZE>
 std::ostream& operator<< (std::ostream &os, const std::array<T, SIZE> &a) {
@@ -204,11 +216,19 @@ std::istream& operator>> (std::istream &is, std::array<T, SIZE> &a) {
   return is;
 }
 
-/// Stream values into a std::vector<...>
+/// Stream values from a std::vector<...>
 template <typename T>
 std::ostream& operator<< (std::ostream &os, const std::vector<T> &vec) {
   os << "[ ";
   for (auto &v: vec) os << v << " ";
+  return os << "]";
+}
+
+/// Stream values from a std::set<...>
+template <typename T>
+std::ostream& operator<< (std::ostream &os, const std::set<T> &s) {
+  os << "[ ";
+  for (auto &v: s) os << v << " ";
   return os << "]";
 }
 

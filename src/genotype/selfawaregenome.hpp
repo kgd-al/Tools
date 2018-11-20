@@ -54,6 +54,10 @@ namespace genotype {
 namespace _details {
 /// \cond internal
 
+/// Declaration of the object type containing field management data
+template <typename T, typename O, T O::* F>
+struct SAGFieldMetadata;
+
 /// Genomic fields interface. Use to effortlessly manage values in artificial
 /// genome
 ///
@@ -201,6 +205,10 @@ protected:
   /// Delegate checker. Overriden in subclasses to perform the actual detection
   virtual bool checkPrivate (O &object) const = 0;
 };
+
+/// Helper alias to the pointer type for a genome field manager
+template <typename T, typename O, T O::*F>
+using GF_ptr = std::unique_ptr<_details::GenomeField<T, O, F>>;
 
 /// A genomic field manager that relies on config::MutationSettings::Bounds to
 /// automatically produce sensible values for the managed field
@@ -378,11 +386,9 @@ auto buildMap(const typename T::Iterator &it,
 }
 
 /// Helper type to force linker error on undefined genome field
-template <typename T>
-struct Checker {
-  /// Link against the (hopefully not missing) metadata
-  constexpr Checker (const T*) {}
-};
+/// \todo NOT WORKING
+//template <typename T1, typename T2>
+//struct Checker;
 
 /// Manages indentation for provided ostream
 /// \author James Kanze @ https://stackoverflow.com/a/9600752
@@ -731,8 +737,9 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
 /// The qualified configuration file
 #define __SCONFIG __SGENOME::config_t
 
-/// The name of the static variable managing a specific genomic field
-#define __FIELD_MD(NAME) _##NAME##_metadata
+/// The template specialization for the given field
+#define __METADATA(OBJECT, TYPE, FIELD) \
+  SAGFieldMetadata<TYPE, OBJECT, &OBJECT::FIELD>
 
 /// The fully-qualified genome field manager name for type \p ITYE, field type
 /// \p TYPE and name \p NAME
@@ -742,31 +749,26 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
     &__SGENOME::NAME                \
   >
 
-/// The field manager for field \p NAME
-#define __GENOME_FIELD(NAME) __SGENOME::__FIELD_MD(NAME)
-
 /// Defines the field manager for field \p NAME of type \p TYPE
 /// Instantiates an object of derived type \p ITYPE
 #define __DEFINE_GENOME_FIELD_PRIVATE(ITYPE, TYPE, NAME, ALIAS, ...)  \
-  namespace __NMSP {                                                  \
-  const std::unique_ptr<__TARGS(GenomeField, TYPE, NAME)>             \
-    __GENOME_FIELD(NAME) =                                            \
-    std::make_unique<__TARGS(ITYPE, TYPE, NAME)>(                     \
-      #NAME, ALIAS, __SGENOME::_iterator, __VA_ARGS__                 \
-    );                                                                \
+  namespace genotype::_details {                                                  \
+  const GF_ptr<TYPE, GENOME, &GENOME::NAME>             \
+    __METADATA(GENOME, TYPE, NAME)::metadata =                                            \
+      std::make_unique<__TARGS(ITYPE, TYPE, NAME)>(                     \
+        #NAME, ALIAS, GENOME::_iterator, __VA_ARGS__                 \
+      );                                                                \
   }
-
-/// Make link error if metadata is left undefined
-#define __ASSERT_METADATA_EXISTS(NAME)                  \
-  _details::Checker<decltype(__FIELD_MD(NAME))>   \
-    _##NAME##_link_checker {&__FIELD_MD(NAME)};
-
 
 /// \endcond
 
-/// Hides away the CRTP requires for fields auto-management independancy
-#define SELF_AWARE_GENOME(NAME) \
-  NAME : public SelfAwareGenome<NAME>
+/// Includes the necessary friend declarations
+#define APT_SAG()                                   \
+  friend struct config::SAGConfigFile<this_t>;      \
+                                                    \
+  template <typename O_, typename T_, T_ O_::* F_>  \
+  friend struct _details::SAGFieldMetadata;
+
 
 /// Hides away the CRTP and multiple inheritance
 #define SAG_CONFIG_FILE(GENOME)                           \
@@ -774,15 +776,17 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
   : public _details::SAGConfigFileTypes<__NMSP::GENOME>,  \
     public ConfigFile<SAGConfigFile<__NMSP::GENOME>>
 
-/// Declare a genomic field of type \p TYPE and name \p NAME
-#define DECLARE_GENOME_FIELD(TYPE, NAME)        \
-  TYPE NAME;                                    \
-  static const std::unique_ptr<                 \
-    _details::GenomeField<                      \
-        TYPE, this_t, &this_t::NAME             \
-    >> __FIELD_MD(NAME);                        \
-  __ASSERT_METADATA_EXISTS(NAME)                \
-  enum {}
+/// Declares that \p FIELD of \p TYPE in \p OBJECT should be automanaged (i.e
+/// automated mutations, crossing, printing, ...)
+/// \see SelfAwareGenome
+#define DECLARE_GENOME_FIELD(OBJECT, TYPE, FIELD)               \
+  namespace _details {                                          \
+  template <>                                                   \
+  struct __METADATA(OBJECT, TYPE, FIELD) {                      \
+    static const GF_ptr<TYPE, OBJECT, &OBJECT::FIELD> metadata; \
+  };                                                            \
+  }
+
 
 /// Defines the genomic field \p NAME with type \p TYPE passing the variadic
 /// arguments to build the mutation bounds
@@ -812,12 +816,16 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
   __TARGS(GenomeFieldWithFunctor, TYPE, NAME)::Functor
 
 /// Defines an object linking a mutation rate to an automatic field manager
-#define MUTATION_RATE(NAME, VALUE)      \
-  std::pair<                            \
-    __NMSP_D::GenomeFieldInterface<     \
-      __SGENOME                         \
-    >*, float                           \
-  >(__GENOME_FIELD(NAME).get(), VALUE)
+#define MUTATION_RATE(NAME, VALUE)        \
+  std::pair<                              \
+    __NMSP_D::GenomeFieldInterface<       \
+      __SGENOME                           \
+    >*, float                             \
+  >(genotype::_details::__METADATA(       \
+    __SGENOME,                            \
+    decltype(__SGENOME::NAME),            \
+    NAME                                  \
+  )::metadata.get(), VALUE)
 
 /// Defines the mutation rates map for the current genome
 #define DEFINE_GENOME_MUTATION_RATES(...)       \

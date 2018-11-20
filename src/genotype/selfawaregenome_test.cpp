@@ -13,13 +13,15 @@
 // =============================================================================
 // trivial.h
 namespace genotype {
-class SELF_AWARE_GENOME(InternalTrivial) {
+class InternalTrivial : public SelfAwareGenome<InternalTrivial> {
+  APT_SAG()
 public:
   InternalTrivial(void) {}
   virtual ~InternalTrivial(void) = default;
 
-  DECLARE_GENOME_FIELD(float, floatField)
+  float floatField;
 };
+DECLARE_GENOME_FIELD(InternalTrivial, float, floatField)
 } // end of namespace genotype
 // end of trivial.h
 
@@ -52,12 +54,13 @@ DEFINE_GENOME_MUTATION_RATES({
 // =============================================================================
 // complex.h
 namespace genotype {
-class SELF_AWARE_GENOME(InternalComplex) {
+class InternalComplex : public SelfAwareGenome<InternalComplex> {
+  APT_SAG()
 public:
   InternalComplex(void) {}
-
-  DECLARE_GENOME_FIELD(std::string, stringField)
+  std::string stringField;
 };
+DECLARE_GENOME_FIELD(InternalComplex, std::string, stringField)
 } // end of namespace genotype
 // end of complex.h
 
@@ -148,20 +151,26 @@ std::istream& operator>> (std::istream &is, Enum &e) {
   return is;
 }
 
-struct SELF_AWARE_GENOME(External) {
+struct External : public SelfAwareGenome<External> {
+  APT_SAG()
 public:
   External(void) {}
   virtual ~External(void) = default;
 
-  DECLARE_GENOME_FIELD(int, intField)
-  DECLARE_GENOME_FIELD(std::vector<InternalTrivial>, vectorField)
-  DECLARE_GENOME_FIELD(InternalComplex, recField)
+  int intField;
+  std::vector<InternalTrivial> vectorField;
+  InternalComplex recField;
 
-  DECLARE_GENOME_FIELD(Enum, enumField)
+  Enum enumField;
 
   using A = std::array<float,2>;
-  DECLARE_GENOME_FIELD(A, arrayField)
+  A arrayField;
 };
+DECLARE_GENOME_FIELD(External, int, intField)
+DECLARE_GENOME_FIELD(External, std::vector<InternalTrivial>, vectorField)
+DECLARE_GENOME_FIELD(External, InternalComplex, recField)
+DECLARE_GENOME_FIELD(External, Enum, enumField)
+DECLARE_GENOME_FIELD(External, External::A, arrayField)
 } // end of namespace genotype
 // end of genome.h
 
@@ -215,10 +224,11 @@ using A = genotype::GENOME::A;
 DEFINE_GENOME_FIELD_WITH_BOUNDS(A, arrayField, "af", A{-10,0}, A{0,10})
 
 DEFINE_GENOME_MUTATION_RATES({
-  MUTATION_RATE(  intField, 2.f ),
-  MUTATION_RATE(arrayField, 4.f ),
+  MUTATION_RATE(   intField, 2.f ),
+  MUTATION_RATE(  enumField, 1.f ),
+  MUTATION_RATE( arrayField, 4.f ),
   MUTATION_RATE(vectorField, 4.f ),
-  MUTATION_RATE(recField, 4.f ),
+  MUTATION_RATE(   recField, 4.f ),
 })
 
 #undef GENOME

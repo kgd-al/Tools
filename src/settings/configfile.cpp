@@ -184,8 +184,8 @@ AbstractConfigFile::read(ConfigIterator &it,
             if (!ok) {
               if (fieldIt->second.isConfigFile()) {
                 res |= SUBCONFIG_FILE_ERROR;
-                std::cerr << "Subconfig file '" << field << " of '" << name
-                          << " had errors" << std::endl;
+                std::cerr << "Subconfig file '" << field << "' of '" << name
+                          << "' had errors" << std::endl;
               } else {
                 res |= FIELD_PARSE_ERROR;
                 std::cerr << "Error parsing field '" << field << " with value '"
