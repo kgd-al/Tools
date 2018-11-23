@@ -595,13 +595,13 @@ public:
 
   /// Writes this genome to \p filepath
   /// \throws std::invalid_argument if the path is not writable
-  void toFile (const std::string &filepath) {
+  void toFile (const std::string &filepath, int indent = -1) {
     std::ofstream ofs (filepath);
     if (!ofs.is_open())
       throw std::invalid_argument("Unable to write to " + filepath);
 
     check();
-    ofs << dump();
+    ofs << dump(indent);
   }
 
   /// Load a self-aware genome from provided \p filepath
