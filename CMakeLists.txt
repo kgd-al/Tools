@@ -34,6 +34,7 @@ set(SOURCES
     "src/genotype/selfawaregenome.hpp"
 
     "src/random/dice.hpp"
+    "src/random/random_iterator.hpp"
 
     "src/settings/configfile.h"
     "src/settings/configfile.cpp"
