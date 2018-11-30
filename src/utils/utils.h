@@ -56,9 +56,26 @@ template <typename T> bool operator< (const T& v0, const T& v1) {
         : v0.z() < v1.z();
 }
 
+/// \return \p val clipped (in-place) in the [\p lower, \p upper] range
+template <typename T> T iclip(T lower, T &val, T upper) {
+  val = std::max(lower, std::min(val, upper));
+}
+
+/// \p val clipped (in-place) the [lower, inf] range
+template <typename T> T iclip_min(T lower, T &val) {
+  if (val < lower)  val = lower;
+  return val;
+}
+
+/// \p val clipped (in-place) the [-inf,upper] range
+template <typename T> T iclip_max(T &val, T upper) {
+  if (upper < val)  val = upper;
+  return val;
+}
+
 /// \return \p val clipped in the [\p lower, \p upper] range
 template <typename T> T clip (T lower, T val, T upper) {
-  return std::max(lower, std::min(val, upper));
+  return iclip(lower, val, upper);
 }
 
 /// \return the sign of val (-1,0,1)
