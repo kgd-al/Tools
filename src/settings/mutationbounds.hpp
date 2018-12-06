@@ -123,7 +123,7 @@ struct MutationSettings::BoundsOperators<T, std::enable_if_t<std::is_fundamental
 
   /// \copydoc MutationSettings::Bounds::distance
   static double distance (T lhs, T rhs, T min, T max) {
-    return fabs(lhs - rhs) / span(min, max);
+    return (std::max(lhs, rhs) - std::min(lhs, rhs)) / span(min, max);
   }
 
   /// \copydoc MutationSettings::Bounds::mutate
