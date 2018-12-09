@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <functional>
 
+#include <atomic>
+
 #include "../utils/utils.h"
 #include "../external/json.hpp"
 #include "../settings/configfile.h"
@@ -25,6 +27,45 @@
  */
 
 namespace config {
+
+/// Store global variables for all self-aware genome configuration files
+struct SAGConfigFile_common {
+
+  /// Sets whether or not to automatically log mutations and returns the
+  /// previous value
+  static bool autologMutations (bool b) {
+    return autologMutations(b ? TRUE : FALSE);
+  }
+
+  /// Returns whether mutations are automatically logged
+  static bool autologMutations(void) {
+    return autologMutations(UNCHANGED);
+  }
+
+private:
+  /// \cond internal
+
+  /// Helper enumeration for a tri-state boolean
+  enum State { TRUE, FALSE, UNCHANGED };
+
+  /// Stores the autolog value as a singleton and manages access/updates
+  static bool autologMutations (State s) {
+    static std::atomic<bool> alm = [] {
+      bool b = false;
+      utils::getEnv<bool>("autologMutations", b);
+      return b;
+    }();
+    bool prev = alm;
+    switch (s) {
+    case TRUE:  alm = true;   return prev;
+    case FALSE: alm = false;  return prev;
+    case UNCHANGED:           return alm;
+    }
+    return false;
+  }
+  /// \endcond
+};
+
 namespace _details {
 
 /// Provides common types used for definining mutation bounds and rates
@@ -91,6 +132,9 @@ public:
   const std::string& alias (void) const {
     return _alias;
   }
+
+  /// \returns Whether the managed field is also a self-aware genome
+  virtual bool isSubgenomeField (void) const = 0;
 
   /// Stream the managed field to \p os
   virtual void print (std::ostream &os, const G &object) const = 0;
@@ -168,6 +212,13 @@ public:
   }
 
   virtual ~GenomeField (void) = default;
+
+  /// Static function to determine whether or not the managed field is a sag
+  static inline constexpr bool isSubgenomeFieldStatic (void);
+
+  bool isSubgenomeField(void) const override {
+    return isSubgenomeFieldStatic();
+  }
 
   void print (std::ostream &os, const O &object) const override {
     using utils::operator<<;
@@ -514,9 +565,21 @@ public:
   /// Static implementation of mutate(Dice)
   static void mutate (G &object, Dice &dice) {
     std::string fieldName = dice.pickOne(_mutationRates.get());
-    std::cerr << "Mutated field " << fieldName << std::endl;
-    _iterator.at(fieldName).get().mutate(object, dice);
+    const auto &manager = _iterator.at(fieldName).get();
+
+    if (config::SAGConfigFile_common::autologMutations() && !manager.isSubgenomeField()) {
+      std::cerr << "Mutated field " << fieldName << " from ";
+      manager.print(std::cerr, object);
+    }
+
+    manager.mutate(object, dice);
     object.mutateExtension(dice);
+
+    if (config::SAGConfigFile_common::autologMutations() && !manager.isSubgenomeField()) {
+      std::cerr << " to ";
+      manager.print(std::cerr, object);
+      std::cerr << std::endl;
+    }
   }
 
   /// Static implementation of distance(G&,G&)
@@ -710,6 +773,12 @@ protected:
 
 template <typename G>
 typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
+
+template <typename T, typename O, T O::*OFFSET>
+inline constexpr bool _details::GenomeField<T,O,OFFSET>::isSubgenomeFieldStatic (void) {
+  return utils::is_base_template_of<SelfAwareGenome, T>::value;
+}
+
 
 /// \cond internal
 template <typename T, typename O, T O::*F>

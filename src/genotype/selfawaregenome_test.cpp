@@ -275,6 +275,25 @@ void showcase (F setter) {
   std::cerr.flush();
 }
 
+template <typename T>
+static constexpr bool test_subgenome_type_trait =
+  utils::is_base_template_of<genotype::SelfAwareGenome, T>::value;
+
+template <typename T>
+static constexpr bool test_genomefield_type_trait =
+  genotype::_details::GenomeField<T, genotype::InternalTrivial, nullptr>
+    ::isSubgenomeFieldStatic();
+
+static_assert(!test_subgenome_type_trait<float>,
+              "float should not be a subgenome");
+static_assert(test_subgenome_type_trait<genotype::InternalComplex>,
+              "InternalComplex should be a subgenome");
+
+static_assert(!test_genomefield_type_trait<float>,
+              "float should not be a subgenome");
+static_assert(test_genomefield_type_trait<genotype::InternalComplex>,
+              "InternalComplex should be a subgenome");
+
 int main (void) {
   showcase<genotype::InternalTrivial>([] (auto&) {});
 

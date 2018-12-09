@@ -179,6 +179,24 @@ struct is_cpp_array<T[N]> : std::true_type {};
 template <class T, std::size_t N>
 struct is_cpp_array<std::array<T,N>> : std::true_type {};
 
+/// Helper type trait to check whether \p Base<...> is a base class of Derived
+template <template <typename...> class Base, typename Derived>
+struct is_base_template_of {
+
+  /// Helper alias to the derived type with no const qualificiation
+  using U = typename std::remove_cv<Derived>::type;
+
+  /// Test case for self aware genomes
+  template <typename... Args>
+  static std::true_type test(Base<Args...>*);
+
+  /// Test case for other types
+  static std::false_type test(void*);
+
+  /// Whether or not \p Derived is a subclass of \p Base
+  static constexpr bool value =
+      decltype(test(std::declval<U*>()))::value;
+};
 
 // =============================================================================
 // == Reversed iterable
@@ -230,6 +248,7 @@ std::istream& operator>> (std::istream &is, std::array<T, SIZE> &a) {
   char c;
   is >> c;
   for (T &v: a) is >> v;
+  is >> c;
   return is;
 }
 
@@ -313,6 +332,20 @@ std::string readAll (const std::string &filename);
 
 /// \return the contents of \p ifs as a single string
 std::string readAll (std::ifstream &ifs);
+
+// =============================================================================
+
+/// Strong-typed environment extractor
+template <typename T>
+bool getEnv (const char *name, T &value) {
+  if (const char *env = getenv(name)) {
+    std::stringstream ss;
+    ss << env;
+    ss >> value;
+    return bool(ss);
+  }
+  return false;
+}
 
 // =============================================================================
 
