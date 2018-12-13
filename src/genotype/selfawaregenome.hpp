@@ -491,8 +491,8 @@ public:
 /// \endcond
 } // end of namespace _details
 
-/// \brief Inherit from this class to gain access to a number of automated functions (
-/// random generation, mutation, crossover, distance computation, bounds check)
+/// \brief Inherit from this class to gain access to a number of automated functions
+///  (random generation, mutation, crossover, distance computation, bounds check)
 ///
 /// Conforming to the interface requires some, minimal adaptations, in the form
 /// of englobing macros.
@@ -774,13 +774,12 @@ protected:
 template <typename G>
 typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
 
+/// \cond internal
 template <typename T, typename O, T O::*OFFSET>
 inline constexpr bool _details::GenomeField<T,O,OFFSET>::isSubgenomeFieldStatic (void) {
   return utils::is_base_template_of<SelfAwareGenome, T>::value;
 }
 
-
-/// \cond internal
 template <typename T, typename O, T O::*F>
 typename _details::GenomeFieldWithFunctor<T,O,F>::Functor
 _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {

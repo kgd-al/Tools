@@ -120,9 +120,9 @@ private:
       for (uint i: indices)   log() << i << " ";
       log() << Log::endl;
     }
-#endif
 
     assert(c.size() == buffer.size());
+#endif
   }
 
   /// Suffled collection (iterators pointing to the real container values)
