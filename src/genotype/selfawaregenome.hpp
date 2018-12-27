@@ -651,17 +651,26 @@ public:
       throw std::invalid_argument(oss.str());
   }
 
+  /// \returns the default file extension for serialized self aware genomes
+  virtual std::string extension (void) const {
+    return ".sag.json";
+  }
+
   /// \returns a string representation of this genome's contents
-  std::string dump (uint indent = -1) {
+  std::string dump (uint indent = -1) const {
     return json(downcast(*this)).dump(indent);
   }
 
   /// Writes this genome to \p filepath
   /// \throws std::invalid_argument if the path is not writable
   void toFile (const std::string &filepath, int indent = -1) {
-    std::ofstream ofs (filepath);
+    stdfs::path path (filepath);
+    if (path.extension() == "")
+      path += extension();
+
+    std::ofstream ofs (path);
     if (!ofs.is_open())
-      throw std::invalid_argument("Unable to write to " + filepath);
+      utils::doThrow<std::invalid_argument>("Unable to write to ", path);
 
     check();
     ofs << dump(indent);

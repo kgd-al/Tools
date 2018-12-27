@@ -339,7 +339,6 @@ class FastDice : public AbstractDice {
   RNG_t _rng;
 
   RNG_t& getRNG (void) override { return _rng; }
-  const RNG_t& getRNG (void) const override { return _rng; }
 
 public:
   /// Builds a default dice with a default seed \see rng::AbstractDice::RNG_t()
@@ -360,6 +359,8 @@ public:
   void reset (Seed_t newSeed) override {
     _rng = RNG_t(newSeed);
   }
+
+  const RNG_t& getRNG (void) const override { return _rng; }
 
   /// Compare the underlying random number generator of both arguments
   friend bool operator== (const FastDice &lhs, const FastDice &rhs) {
