@@ -11,6 +11,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 
+################################################################################
+## Multi-configuration installation path
+################################################################################
+
+if (${CMAKE_INSTALL_PREFIX} MATCHES "^/home/")
+    string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+    string(APPEND CMAKE_INSTALL_PREFIX "/${BUILD_TYPE}")
+endif()
+message(STATUS "Install path is ${CMAKE_INSTALL_PREFIX}/")
+
+
 ####################################################################################################
 ## Managing uneven support of std 17 filesystem
 ####################################################################################################
