@@ -310,6 +310,8 @@ bool reset (std::stringstream &ss);
 template <typename KEY, typename VAL>
 VAL take (std::map<KEY, VAL> &map, KEY key) {
   auto it = map.find(key);
+  if (it == map.end())
+    doThrow<std::invalid_argument>("'", key, "' is not a key of the provided map");
   VAL val = it->second;
   map.erase(it);
   return val;
