@@ -25,6 +25,7 @@ AbstractConfigFile::IConfigValue::_prefixes = [] {
     {     Origin::DEFAULT, "D" },
     {        Origin::FILE, "F" },
     { Origin::ENVIRONMENT, "E" },
+    {    Origin::OVERRIDE, "O" },
     {       Origin::ERROR, "!" },
   };
 
@@ -237,8 +238,8 @@ AbstractConfigFile::IConfigValue::IConfigValue (
 }
 
 bool AbstractConfigFile::IConfigValue::input (const std::string &s, Origin o) {
-  // Environment values have final say
-  if (_origin != ENVIRONMENT) {
+  // Environmental and override values have final say
+  if (_origin < ENVIRONMENT) {
 
     try {
 

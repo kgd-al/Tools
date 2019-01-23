@@ -145,18 +145,12 @@ protected:
   struct IConfigValue {
 
     /// Specify where the current value comes from
-    enum Origin { DEFAULT, FILE, ENVIRONMENT, ERROR };
+    enum Origin { DEFAULT = 0, FILE = 1, ENVIRONMENT = 2, OVERRIDE = 3, ERROR = 10 };
 
   private:
 
     /// Look-up-table for Origin to character conversion
     static const std::map<Origin, std::string> _prefixes;
-
-    /// Origin of the current value
-    Origin _origin;
-
-    /// Name of the config value (i-e field name in the parent config file)
-    std::string _name;
 
     /// Cannot be copy constructed
     IConfigValue(const IConfigValue &) = delete;
@@ -168,6 +162,12 @@ protected:
     virtual bool performInput (const std::string &s) = 0;
 
   protected:
+    /// Origin of the current value
+    Origin _origin;
+
+    /// Name of the config value (i-e field name in the parent config file)
+    std::string _name;
+
     /// If the environment contains a value from this field, use it
     void checkEnv (const char *name);
 
@@ -178,8 +178,13 @@ protected:
     /// Provides a common interface. See ConfigValue::output and TSubconfigFile::output.
     virtual std::ostream& output (std::ostream &os) const = 0;
 
-    /// Delegates work the overriden performInput unless the current source is ENVIRONMENT
+    /// Delegates work the overriden performInput unless the current source has higher precedance
     bool input (const std::string &s, Origin o);
+
+    /// \returns the name (key) of this config value
+    const std::string& name (void) const {
+      return _name;
+    }
 
     /// For discrimination between value-based and subconfig-based fields
     virtual bool isConfigFile (void) const {
@@ -215,6 +220,14 @@ protected:
     /// Returns a mutable referance to the underlying value. Use with caution!
     T& ref (void) {
       return _value;
+    }
+
+    /// Replaces current value with provided one
+    T overrideWith (T other) {
+      _origin = OVERRIDE;
+      T tmp = _value;
+      _value = other;
+      return tmp;
     }
 
     /// Delegate writting this item to the appropriate PrettyWriter
