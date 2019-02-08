@@ -56,6 +56,8 @@ set(SOURCES
     "src/utils/utils.h"
     "src/utils/utils.cpp"
     "src/utils/shell.hpp"
+    "src/utils/functions.h"
+    "src/utils/functions.cpp"
 )
 set (EXTERNALS
     "src/external/cxxopts.hpp"
