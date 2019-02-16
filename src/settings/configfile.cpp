@@ -196,9 +196,11 @@ AbstractConfigFile::read(ConfigIterator &it,
           }
 
           else {  // Error if could not find
-            std::cerr << "Could not find field '" << field
-                      << "' in config file " << name << std::endl;
-            res |= FIELD_UNKNOWN_ERROR;
+            if (field.substr(0, 6) != "DEBUG_") {
+              std::cerr << "Could not find field '" << field
+                        << "' in config file " << name << std::endl;
+              res |= FIELD_UNKNOWN_ERROR;
+            }
           }
 
         } else {  // Error if current line is not a valid data field
