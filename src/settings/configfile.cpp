@@ -39,6 +39,14 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
                                 const std::string& name, const stdfs::path& path,
                                 std::ostream &os) {
 
+  const bool toFile = (os.rdbuf() != std::cout.rdbuf());
+  if (toFile && stdfs::exists(path)) {
+    std::cerr << "Output path " << path << " already exists. Overwrite? y/n"
+              << std::flush;
+    if (std::cin.get() != 'y')  return;
+    std::cerr << std::endl;
+  }
+
   if (iterator.size() == 0) {
     os << "Empty configuration file: " << name << " (either voluntarily or it is unused by this executable)\n" << std::endl;
     return;
@@ -46,7 +54,6 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
 
   // Find directory name
   stdfs::path thisDir;
-  const bool toFile = (os.rdbuf() != std::cout.rdbuf());
   if (toFile) thisDir = path.parent_path();
 
   // Finding max field name width

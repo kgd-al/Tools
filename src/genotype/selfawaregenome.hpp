@@ -83,8 +83,15 @@ struct SAGConfigFileTypes {
   using MutationRates = MutationSettings::MutationRates;
 
   /// Lazy-ass helper alias to the mutation rates type
-  using M = MutationRates;
+  using MR = MutationRates;
+
+  /// Helper alias to the distance weights type
+  using DistanceWeights = std::map<std::string, float>;
+
+  /// Lazy-ass helper alias to the distance weights type
+  using DW = DistanceWeights;
 };
+
 } // end of namespace _details
 
 template <typename G> struct SAGConfigFile;
@@ -586,7 +593,7 @@ public:
   static double distance (const G &lhs, const G &rhs) {
     double d = 0;
     for (auto &it: _iterator)
-      d+= get(it).distance(lhs, rhs);
+      d += _distanceWeights.get().at(get(it).name()) * get(it).distance(lhs, rhs);
     lhs.distanceExtension(rhs, d);
     return d;
   }
@@ -753,10 +760,18 @@ protected:
   static typename traits::Iterator _iterator;
 
   /// Helper alias for the reference to the config-embedded mutation rates
-  using MutationRates = std::reference_wrapper<const config::MutationSettings::MutationRates>;
+  using MutationRates = std::reference_wrapper<
+    const config::MutationSettings::MutationRates>;
 
   /// Reference to the config-embedded mutation rates
   static const MutationRates _mutationRates;
+
+  /// Helper alias for the reference to the config-embedded mutation rates
+  using DistanceWeights = std::reference_wrapper<
+    const typename config::_details::SAGConfigFileTypes<G>::DistanceWeights>;
+
+  /// Reference to the config-embedded distance weights
+  static const DistanceWeights _distanceWeights;
 
   /// \return An immutable reference to the field manager
   static const auto& get (const typename traits::Iterator::value_type &it) {
@@ -908,7 +923,7 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
 #define DEFINE_GENOME_MUTATION_RATES(...)       \
   namespace config {                            \
   DEFINE_MAP_PARAMETER_FOR(__SCONFIG,           \
-    __SCONFIG::M, mutationRates,                \
+    __SCONFIG::MR, mutationRates,               \
     __NMSP_D::buildMap<__SGENOME>(              \
       __SGENOME::iterator(), __VA_ARGS__        \
     )                                           \
@@ -921,6 +936,37 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
     SelfAwareGenome<GENOME>::_mutationRates =   \
     std::ref(__SCONFIG::mutationRates());       \
   }
+
+
+/// Defines an object linking a distance weight to an automatic field manager
+#define DISTANCE_WEIGHT(NAME, VALUE)      \
+  std::pair<                              \
+    __NMSP_D::GenomeFieldInterface<       \
+      __SGENOME                           \
+    >*, float                             \
+  >(genotype::_details::__METADATA(       \
+    __SGENOME,                            \
+    decltype(__SGENOME::NAME),            \
+    NAME                                  \
+  )::metadata.get(), VALUE)
+
+/// Defines the distance weights for the current genome
+#define DEFINE_GENOME_DISTANCE_WEIGHTS(...)       \
+  namespace config {                              \
+  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,             \
+    __SCONFIG::DW, distanceWeights,               \
+    __NMSP_D::buildMap<__SGENOME>(                \
+      __SGENOME::iterator(), __VA_ARGS__          \
+    )                                             \
+  )                                               \
+  }                                               \
+                                                  \
+  namespace __NMSP {                              \
+  template<>                                      \
+  const SelfAwareGenome<GENOME>::DistanceWeights  \
+    SelfAwareGenome<GENOME>::_distanceWeights =   \
+    std::ref(__SCONFIG::distanceWeights());       \
+}
 
 } // end of namespace genotype
 

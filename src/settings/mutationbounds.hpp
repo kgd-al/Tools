@@ -229,7 +229,7 @@ struct MutationSettings::BoundsOperators<T, std::enable_if_t<utils::is_cpp_array
     uint i = 0;
     for (auto &v: lhs)
       d += FOperators::distance(lhs[i], rhs[i], min[i], max[i]), i++, (void)v;
-    return d / i;
+    return d;
   }
 
   /// Mutates a single value in the multidimensional \p v

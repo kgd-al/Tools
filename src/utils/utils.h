@@ -356,11 +356,18 @@ bool getEnv (const char *name, T &value) {
 /// std::cout << "Current time is: " << CurrentTime{} << std::endl;
 /// \endcode
 struct CurrentTime {
+  /// The format to use unless otherwise specified
+  static constexpr auto defaultFormat = "%c";
+
   /// The format used for formatting
   const std::string format;
 
   /// Builds a time streamer using the (possibly default) specified format
-  CurrentTime (const std::string &format="%c") : format(format) {}
+  CurrentTime (const std::string &format=defaultFormat) : format(format) {}
+
+  /// Try to determine the char count of the displayed time according to the
+  /// provided format
+  static uint width (const std::string &format=defaultFormat);
 
   /// Insert the object into stream \p os
   friend std::ostream& operator<< (std::ostream &os, const CurrentTime &ct);

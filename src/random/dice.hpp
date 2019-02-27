@@ -159,6 +159,40 @@ protected:
           && lhs._seed == rhs._seed;
     }
 
+    /// Delegates serialization of the internal state of the base rng
+    friend std::ostream& operator<< (std::ostream &os, const RNG_t &rng) {
+      auto baseFlags = os.flags();
+      os.setf(std::ios::dec, std::ios::basefield);
+      os.setf(std::ios::left, std::ios::adjustfield);
+
+      auto loc = os.getloc();
+      os.imbue(std::locale("C"));
+
+      os << rng._seed << " " << static_cast<const BaseRNG_t&>(rng);
+
+      os.imbue(loc);
+      os.setf(baseFlags);
+
+      return os;
+    }
+
+    /// Delegates deserialization of the internal state of the base rng
+    friend std::istream& operator>> (std::istream &is, RNG_t &rng) {
+      auto baseFlags = is.flags();
+      is.setf(std::ios::dec, std::ios::basefield);
+      is.setf(std::ios::left, std::ios::adjustfield);
+
+      auto loc = is.getloc();
+      is.imbue(std::locale("C"));
+
+      is >> rng._seed >> static_cast<BaseRNG_t&>(rng);
+
+      is.imbue(loc);
+      is.setf(baseFlags);
+
+      return is;
+    }
+
   private:
     Seed_t _seed; ///< The seed used by this rng
   };
@@ -365,6 +399,16 @@ public:
   /// Compare the underlying random number generator of both arguments
   friend bool operator== (const FastDice &lhs, const FastDice &rhs) {
     return lhs._rng == rhs._rng;
+  }
+
+  /// Serialize this dice, saving its complete state
+  friend void serialize (std::ostream &os, const FastDice &d) {
+    os << d._rng;
+  }
+
+  /// Deserialize this dice, restoring its complete state
+  friend void deserialize (std::istream &is, FastDice &d) {
+    is >> d._rng;
   }
 };
 

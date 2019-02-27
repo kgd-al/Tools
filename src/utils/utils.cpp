@@ -73,6 +73,12 @@ std::string readAll (std::ifstream &ifs) {
   return ss.str();
 }
 
+uint CurrentTime::width(const std::string &format) {
+  std::ostringstream oss;
+  oss << CurrentTime(format);
+  return oss.str().size();
+}
+
 std::ostream& operator<< (std::ostream &os, const CurrentTime &ct) {
   std::time_t t = std::time(nullptr);
   std::tm tm = *std::localtime(&t);

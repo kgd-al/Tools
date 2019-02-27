@@ -32,7 +32,9 @@ namespace config {
 template <>
 struct SAG_CONFIG_FILE(InternalTrivial) {
   DECLARE_PARAMETER(B<float>, floatFieldBounds)
-  DECLARE_PARAMETER(M, mutationRates)
+
+  DECLARE_PARAMETER(MR, mutationRates)
+  DECLARE_PARAMETER(DW, distanceWeights)
 };
 } // end of namespace config
 // end of trivialconfig.h
@@ -44,6 +46,10 @@ DEFINE_GENOME_FIELD_WITH_BOUNDS(float, floatField, "ff", -4.f, 0.f, 0.f, 4.f)
 
 DEFINE_GENOME_MUTATION_RATES({
   MUTATION_RATE(floatField, 1.f ),
+})
+
+DEFINE_GENOME_DISTANCE_WEIGHTS({
+  DISTANCE_WEIGHT(floatField, 1.f ),
 })
 
 #undef GENOME
@@ -71,7 +77,9 @@ namespace config {
 template <>
 struct SAG_CONFIG_FILE(InternalComplex) {
   using M = MutationSettings::MutationRates;
-  DECLARE_PARAMETER(M, mutationRates)
+
+  DECLARE_PARAMETER(MR, mutationRates)
+  DECLARE_PARAMETER(DW, distanceWeights)
 };
 } // end of namespace config
 // end of complexconfig.h
@@ -131,6 +139,10 @@ DEFINE_GENOME_MUTATION_RATES({
   MUTATION_RATE(stringField, 1.f ),
 })
 
+DEFINE_GENOME_DISTANCE_WEIGHTS({
+  DISTANCE_WEIGHT(stringField, 1.f ),
+})
+
 #undef GENOME
 // end of complex.cpp
 
@@ -186,7 +198,8 @@ struct SAG_CONFIG_FILE(External) {
   DECLARE_PARAMETER(B<A>, arrayFieldBounds)
   DECLARE_PARAMETER(B<genotype::Enum>, enumFieldBounds)
 
-  DECLARE_PARAMETER(M, mutationRates)
+  DECLARE_PARAMETER(MR, mutationRates)
+  DECLARE_PARAMETER(DW, distanceWeights)
 };
 } // end of namespace config
 // end of genomeconfig.h
@@ -229,6 +242,14 @@ DEFINE_GENOME_MUTATION_RATES({
   MUTATION_RATE( arrayField, 4.f ),
   MUTATION_RATE(vectorField, 4.f ),
   MUTATION_RATE(   recField, 4.f ),
+})
+
+DEFINE_GENOME_DISTANCE_WEIGHTS({
+  DISTANCE_WEIGHT(   intField, 2.f ),
+  DISTANCE_WEIGHT(  enumField, 1.f ),
+  DISTANCE_WEIGHT( arrayField, 4.f ),
+  DISTANCE_WEIGHT(vectorField, 4.f ),
+  DISTANCE_WEIGHT(   recField, 4.f ),
 })
 
 #undef GENOME
