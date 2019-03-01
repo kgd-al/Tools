@@ -695,7 +695,7 @@ public:
     _details::IndentingOStreambuf indent(os);
     os << "\n";
     for (auto &it: _iterator) {
-      os << it.first << ": ";
+      os << get(it).alias() << ": ";
       get(it).print(os, g);
       os << "\n";
     }

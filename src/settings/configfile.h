@@ -468,12 +468,21 @@ public:
   /// If \p path is empty, the default path is used @see defaultPath
   /// If only a directory is provided, the default filename is used @see defaultFilename
   /// Parent directories are created as needed
+  ///
+  /// \return Whether writing was performed
   static bool printConfig(stdfs::path path,
                           const std::string &header = "Writing") {
     if (path.empty()) _path = defaultPath();
 
     else if (path.extension() != EXT)
       _path = path / defaultFilename();
+
+    if (stdfs::exists(_path)) {
+      std::cerr << "Output path " << _path << " already exists. Overwrite? y/n "
+                << std::flush;
+      if (std::cin.get() != 'y')  return false;
+      std::cerr << std::endl;
+    }
 
     stdfs::create_directories(_path.parent_path());
     std::ofstream ofs (_path);
