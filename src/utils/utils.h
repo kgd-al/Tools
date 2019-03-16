@@ -91,8 +91,19 @@ std::string className (void) {
   std::string name (demangled);
   free(demangled);
 
-  return name;
+  using TR = typename std::remove_reference<T>::type;
+  std::string prefix, suffix;
+  if (std::is_const<TR>::value)
+      prefix += "const ";
+  if (std::is_volatile<TR>::value)
+      prefix += "volatile ";
+  if (std::is_lvalue_reference<T>::value)
+      suffix += "&";
+  else if (std::is_rvalue_reference<T>::value)
+      suffix += "&&";
+  return prefix + name + suffix;
 }
+
 
 /// \returns The unmangled, unscoped name of the template class
 /// eg foo::Bar becomes Bar and foo::Bar<foo::Baz> becomes Bar<Baz>
@@ -178,6 +189,11 @@ struct is_cpp_array<T[N]> : std::true_type {};
 
 template <class T, std::size_t N>
 struct is_cpp_array<std::array<T,N>> : std::true_type {};
+
+template<typename T> struct is_std_vector : public std::false_type {};
+
+template<typename T, typename A>
+struct is_std_vector<std::vector<T, A>> : public std::true_type {};
 
 /// Helper type trait to check whether \p Base<...> is a base class of Derived
 template <template <typename...> class Base, typename Derived>

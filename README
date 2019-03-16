@@ -1,1 +1,16 @@
 Toolset with various c++ "improvements" (personnal opinion)
+
+This repository depend on:
+ - cxxopts by jarro2783 at https://github.com/jarro2783/cxxopts.git
+ - json by nlohmann at https://github.com/nlohmann/json.git
+ 
+Contents are:
+  genotype:
+    - selfawaregenome.hpp a template class allowing a measure of self introspection. Defines most commonly used genetic operators (mutate, cross, random) as well as those used in apt (distance, compatibility). Also includes serialization, pretty printing, field extraction and aggregation.
+  random:
+    - dice.hpp Encapsulates use of random number generation to provide a straightforward interface. Allows basic number generation in a range, application of a std::*distribution, picking from a container, etc. Exists in both thread safe/unsafe versions
+    - random_iterator.hpp Allows iterating a container in a random order (current memory footprint of O(i*N), with i the size of the container::iterator type)
+  settings:
+    - 
+  utils:
+    -

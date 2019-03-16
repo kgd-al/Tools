@@ -99,6 +99,168 @@ template <typename G> struct SAGConfigFile;
 
 namespace genotype {
 
+// =============================================================================
+// == Field extraction
+
+/// Base template for a field extractor
+template <typename T, typename ENABLE = void>
+struct Extractor {
+  static_assert(!std::is_same<T,T>::value,
+                "No extractor defined for this type!");
+
+  /// Extract contents of \p according to the path in \p field
+  std::string operator() (const T &value, const std::string &field) const;
+};
+
+
+/// Extracts fundamental values by returning directly
+template <typename T>
+struct Extractor<T, typename std::enable_if<std::is_fundamental<T>::value
+                                          || std::is_enum<T>::value, void>::type> {
+  /// TODO Not documented
+  std::string operator() (const T &value, const std::string &field) const {
+    if (!field.empty())
+      utils::doThrow<std::invalid_argument>(
+        "No subfield in fundamental type ", utils::className<T>());
+
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+  }
+};
+
+/// Produces an aggregated array of aggregated underlying values
+template <typename T>
+struct Extractor<T, typename std::enable_if<utils::is_cpp_array<T>::value
+                                        || utils::is_std_vector<T>::value, void>::type> {
+  /// TODO Not documented
+  std::string operator() (const T &value, const std::string &field) const {
+    if (field[0] == '[') {
+      size_t index;
+      char c;
+      std::string subfield;
+      std::stringstream ss (field);
+      ss >> c >> index >> c >> subfield;
+
+      if (value.size() <= index)
+        utils::doThrow<std::invalid_argument>(
+          "Out-of-bounds: index ", index, " is greater than size ", value.size());
+
+      return Extractor<typename T::value_type>()(value[index], subfield);
+
+    } else {
+      using utils::operator<<;
+      std::ostringstream oss;
+      oss << value;
+      return oss.str();
+    }
+  }
+};
+
+
+// =============================================================================
+// == Field aggregation
+
+/// Base template for a field aggregator
+template <typename T, typename O, typename ENABLE = void>
+struct Aggregator {
+  static_assert(!std::is_same<T,T>::value,
+                "No aggregator defined for this type!");
+
+  /// Aggregates values accessible through \p access in the object array
+  /// \p objects into output stream \p os with verbosity level of \p verbosity
+  void operator() (std::ostream &os, const std::vector<O> &objects,
+                   std::function<const T& (const O&)> access,
+                   uint verbosity) const;
+};
+
+/// Aggregates fundamental values by producing a range of [min,...,max] values
+template <typename T, typename O>
+struct Aggregator<T, O, typename std::enable_if<std::is_fundamental<T>::value
+                                             || std::is_enum<T>::value, void>::type> {
+  /// TODO Not documented
+  void operator() (std::ostream &os, const std::vector<O> &objects,
+                   std::function<const T& (const O&)> access,
+                   uint verbosity) const {
+    std::vector<T> values;
+    for (const O &object: objects)
+      values.push_back(access(object));
+    std::sort(values.begin(), values.end());
+
+    // Can't print more values than we've got
+    verbosity = std::min(verbosity, uint(values.size() - 2));
+    os << "[";
+    for (uint i=0; i<=verbosity+1; i++) {
+      uint j = i * (values.size() - 1) / float(verbosity+1);
+      os << " " << values[j];
+    }
+    os << " ]";
+  }
+};
+
+/// Produces an aggregated array of aggregated underlying values
+template <typename T, typename O>
+struct Aggregator<T, O, typename std::enable_if<utils::is_cpp_array<T>::value, void>::type> {
+  /// TODO Not documented
+  void operator() (std::ostream &os, const std::vector<O> &objects,
+                   std::function<const T& (const O&)> access,
+                   uint verbosity) const {
+    using T_ = typename T::value_type;
+
+    os << "[\n";
+    const auto &front = access(objects.front());
+    for (uint i=0; i<front.size(); i++) {
+      const auto subaccess = [access,i] (const auto &o) -> const T_& {
+        return access(o)[i];
+      };
+
+      os << "\t";
+      Aggregator<T_, O>()(os, objects, subaccess, verbosity);
+      os << "\n";
+    }
+    os << "]\n";
+  }
+};
+
+/// Delegates work to the aggregator for the underlying fundamental type
+//template <typename T, typename O>
+//struct Aggregator<T, O, typename std::enable_if<std::is_enum<T>::value
+//                                                && !_details::is_pretty_enum<T>::value, void>::type> {
+//  /// TODO Not documented
+//  void operator() (std::ostream &os, const std::vector<O> &objects,
+//                   std::function<const T& (const O&)> access,
+//                   uint verbosity) const {
+
+//    using underlying_t = typename std::underlying_type<T>::type;
+//    Aggregator<underlying_t, O>()(
+//      os, objects,
+//      [access] (const auto &o) -> const underlying_t& {
+//        return access(o);
+//      }, verbosity);
+//  }
+//};
+
+/// Cannot aggregate, instead list all values
+template <typename T, typename O>
+struct Aggregator<T, O, typename std::enable_if<_details::is_pretty_enum<T>::value, void>::type> {
+  /// TODO Not documented
+  void operator() (std::ostream &os, const std::vector<O> &objects,
+                   std::function<const T& (const O&)> access,
+                   uint verbosity) const {
+    using EU = EnumUtils<T>;
+    std::set<T> values;
+    for (const O &object: objects)  values.insert(access(object));
+
+    os << "[";
+    for (T v: values) os << " " << EU::getName(v);
+    os << " ]";
+  }
+};
+
+
+// =============================================================================
+// == Field metadata
+
 namespace _details {
 /// \cond internal
 
@@ -170,6 +332,14 @@ public:
 
   /// \returns Whether the corresponding field values are equal in both objects
   virtual bool equal (const G &lhs, const G &rhs) const = 0;
+
+  /// \returns the string equivalent of value under \p field in the provided object
+  virtual std::string getField (const G &object, const std::string &field) const = 0;
+
+  /// Writes an aggregate description of the managed field in each of the
+  /// provided genomes into a synthetic description
+  virtual void aggregate (std::ostream &os, const std::vector<G> &objects,
+                          uint verbosity) const = 0;
 };
 
 /// Helper type storing the various types used by the self aware genomes
@@ -201,12 +371,12 @@ class GenomeField : public GenomeFieldInterface<O> {
 
 protected:
   /// \returns A reference to the associated field
-  T& get (O &o) const {
+  static T& get (O &o) {
     return o.*OFFSET;
   }
 
   /// \returns A constant reference to the associated field
-  const T& get (const O &o) const {
+  static const T& get (const O &o) {
     return o.*OFFSET;
   }
 
@@ -220,11 +390,8 @@ public:
 
   virtual ~GenomeField (void) = default;
 
-  /// Static function to determine whether or not the managed field is a sag
-  static inline constexpr bool isSubgenomeFieldStatic (void);
-
   bool isSubgenomeField(void) const override {
-    return isSubgenomeFieldStatic();
+    return false;
   }
 
   void print (std::ostream &os, const O &object) const override {
@@ -257,6 +424,16 @@ public:
 
   void from_json (const nlohmann::json &j, O &object) const override {
     get(object) = j.get<T>();
+  }
+
+  std::string getField (const O &object, const std::string &field) const override {
+    return Extractor<T>()(get(object), field);
+  }
+
+  void aggregate (std::ostream &os, const std::vector<O> &objects,
+                  uint verbosity) const override {
+    Aggregator<T, O>()(os, objects,
+                       static_cast<const T&(*)(const O&)>(get), verbosity);
   }
 
 protected:
@@ -315,15 +492,19 @@ private:
   }
 };
 
+
 /// A genomic field manager that relies on functions to manage the associated
 /// field
 template <typename T, typename O, T O::*OFFSET>
 class GenomeFieldWithFunctor : public GenomeField<T,O,OFFSET> {
-
+protected:
   /// \copydoc GenomeField::Base
   using Base = GenomeField<T,O,OFFSET>;
-  using typename Base::Dice;
+
   using Base::get;
+
+private:
+  using typename Base::Dice;
 
   /// Function for generating a random, valid value for the associated field
   using Random_f = std::function<T(Dice&)>;
@@ -348,9 +529,6 @@ public:
     Cross_f cross = nullptr;      ///< \copydoc Cross_f
     Distn_f distance = nullptr;   ///< \copydoc Distn_f
     Check_f check = nullptr;      ///< \copydoc Check_f
-
-    /// Extracts and type-check required function from a self-aware genome
-    static Functor buildFromSubgenome (void);
 
   } _functor; ///< The function set used to manage this field
 
@@ -399,6 +577,45 @@ private:
 
   bool checkPrivate (O &object) const override {
     return _functor.check(get(object));
+  }
+};
+
+/// A genomic field manager that delegates work to GenomeFieldWithFunctor
+/// by building a functor for managed self-aware genome
+template <typename T, typename O, T O::*OFFSET>
+class GenomeFieldForSubgenome : public GenomeFieldWithFunctor<T,O,OFFSET> {
+
+  /// Helper alias type the functor-based field manager
+  using Base = GenomeFieldWithFunctor<T,O,OFFSET>;
+  using Base::Base::get;
+
+  /// Helper alias type to the functor type used by Base
+  using Functor = typename Base::Functor;
+
+  /// \return A functor delegating work to the managed self-awarre genome
+  Functor buildFromSubgenome (void) {
+    using D = typename SAG_type_traits<T>::Dice;
+    Functor f;
+    f.random = T::random;
+    f.mutate = static_cast<void(*)(T&,D&)>(T::mutate);
+    f.cross = T::cross;
+    f.distance = T::distance;
+    f.check = static_cast<bool(*)(T&)>(T::check);
+    return f;
+  }
+
+public:
+  /// Builds a genomic interface for the (sub) self-aware genome field \p name,
+  /// registers it in \p registry and provides Base with the necessary set of
+  /// functions
+  template <typename R>
+  GenomeFieldForSubgenome(const std::string &name, const std::string &alias,
+                          R &registry, int) : Base(name, alias, registry,
+                                                   buildFromSubgenome()) {}
+
+  /// \returns true. This is a sag field
+  bool isSubgenomeField(void) const override {
+    return true;
   }
 };
 
@@ -618,6 +835,33 @@ public:
 // =============================================================================
 // == Utilities
 
+  /// \returns the string equivalent of value under \p field in this object
+  std::string getField (const std::string &field) const {
+    return getField(downcast(*this), field);
+  }
+
+  /// \returns the string equivalent of value under \p field in the provided object
+  static std::string getField (const G &object, const std::string &field) {
+    std::string localField = field;
+    if (localField[0] == '.') localField.erase(0 ,1);
+    size_t subfield_i = localField.find_first_of("[.");
+    std::string subField;
+
+    if (subfield_i != std::string::npos) {
+      subField = localField.substr(subfield_i);
+      localField = localField.substr(0, subfield_i);
+      if (subField[0] == '.') subField.erase(0, 1);
+    }
+
+    auto it = _iterator.find(localField);
+    if (it == _iterator.end())
+      utils::doThrow<std::invalid_argument>(
+        "'", localField, "' is not a valid field for ", utils::className<G>(),
+        "\nnote: in call to getField(", field, ")");
+
+    return get(*it).getField(object, subField);
+  }
+
   /// Shorter alias to the json type
   using json = nlohmann::json;
 
@@ -690,6 +934,25 @@ public:
     return G(j);
   }
 
+  /// Aggregates a collection of genome into a synthetic description
+  static void aggregate (std::ostream &os, const std::vector<G> &objects,
+                         uint verbosity = 0) {
+
+    if (objects.size() < 2)
+      utils::doThrow<std::invalid_argument>(
+        "Aggregating ", objects.size(), " makes no sense...");
+
+    _details::IndentingOStreambuf indent(os);
+    for (auto &it: _iterator) {
+      os << get(it).alias() << ": ";
+      get(it).aggregate(os, objects, verbosity);
+      os << "\n";
+    }
+  }
+
+
+// =============================================================================
+// == Operators
   /// Stream all auto-managed fields to \p os
   friend std::ostream& operator<< (std::ostream &os, const G &g) {
     _details::IndentingOStreambuf indent(os);
@@ -798,24 +1061,36 @@ protected:
 template <typename G>
 typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
 
-/// \cond internal
-template <typename T, typename O, T O::*OFFSET>
-inline constexpr bool _details::GenomeField<T,O,OFFSET>::isSubgenomeFieldStatic (void) {
-  return utils::is_base_template_of<SelfAwareGenome, T>::value;
-}
+/// Delegates extraction to the SelfAwareGenome::getField
+template <typename T>
+struct Extractor<T,
+    typename std::enable_if<utils::is_base_template_of<SelfAwareGenome,
+    T>::value, void>::type> {
+  /// TODO Not documented
+  std::string operator() (const T &object, const std::string &field) const {
 
-template <typename T, typename O, T O::*F>
-typename _details::GenomeFieldWithFunctor<T,O,F>::Functor
-_details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
-  using D = typename SAG_type_traits<T>::Dice;
-  Functor f;
-  f.random = T::random;
-  f.mutate = static_cast<void(*)(T&,D&)>(T::mutate);
-  f.cross = T::cross;
-  f.distance = T::distance;
-  f.check = static_cast<bool(*)(T&)>(T::check);
-  return f;
-}
+    return T::getField(object, field);
+  }
+};
+
+/// Delegates aggregation to the SelfAwareGenome::aggregate
+template <typename T, typename O>
+struct Aggregator<T, O,
+    typename std::enable_if<utils::is_base_template_of<SelfAwareGenome,
+                                                       T>::value, void>::type> {
+  /// TODO Not documented
+  void operator() (std::ostream &os, const std::vector<O> &objects,
+                   std::function<const T& (const O&)> access,
+                   uint verbosity) const {
+
+    std::vector<T> subobjects;
+    for (const O &object: objects)  subobjects.push_back(access(object));
+    os << "\n";
+    T::aggregate(os, subobjects, verbosity);
+  }
+};
+
+/// \cond internal
 
 /// The namespace for genetic material
 #define __NMSP genotype
@@ -844,12 +1119,12 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
 /// Defines the field manager for field \p NAME of type \p TYPE
 /// Instantiates an object of derived type \p ITYPE
 #define __DEFINE_GENOME_FIELD_PRIVATE(ITYPE, TYPE, NAME, ALIAS, ...)  \
-  namespace genotype::_details {                                                  \
-  const GF_ptr<TYPE, GENOME, &GENOME::NAME>             \
-    __METADATA(GENOME, TYPE, NAME)::metadata =                                            \
-      std::make_unique<__TARGS(ITYPE, TYPE, NAME)>(                     \
-        #NAME, ALIAS, GENOME::_iterator, __VA_ARGS__                 \
-      );                                                                \
+  namespace genotype::_details {                                      \
+  const GF_ptr<TYPE, GENOME, &GENOME::NAME>                           \
+    __METADATA(GENOME, TYPE, NAME)::metadata =                        \
+      std::make_unique<__TARGS(ITYPE, TYPE, NAME)>(                   \
+        #NAME, ALIAS, GENOME::_iterator, __VA_ARGS__                  \
+      );                                                              \
   }
 
 /// \endcond
@@ -897,10 +1172,7 @@ _details::GenomeFieldWithFunctor<T,O,F>::Functor::buildFromSubgenome (void) {
 /// Defines the genomic field \p NAME with type \p TYPE as a subgenome forwarding
 /// its functions to the functor constructor
 #define DEFINE_GENOME_FIELD_AS_SUBGENOME(TYPE, NAME, ALIAS) \
-  __DEFINE_GENOME_FIELD_PRIVATE(                            \
-    GenomeFieldWithFunctor, TYPE, NAME, ALIAS,              \
-    GENOME_FIELD_FUNCTOR(TYPE, NAME)::buildFromSubgenome()  \
-  )
+  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldForSubgenome, TYPE, NAME, ALIAS, 0)
 
 /// Helper alias to the type of a functor object for a specific, auto-managed,
 /// field
