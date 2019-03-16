@@ -29,7 +29,7 @@
 namespace config {
 
 /// Store global variables for all self-aware genome configuration files
-struct SAGConfigFile_common {
+struct EDNAConfigFile_common {
 
   /// Sets whether or not to automatically log mutations and returns the
   /// previous value
@@ -70,7 +70,7 @@ namespace _details {
 
 /// Provides common types used for definining mutation bounds and rates
 template <typename G>
-struct SAGConfigFileTypes {
+struct EDNAConfigFileTypes {
   /// Helper alias for the relevant bounds abstraction type
   template <typename T>
   using Bounds = MutationSettings::Bounds<T, G>;
@@ -94,7 +94,7 @@ struct SAGConfigFileTypes {
 
 } // end of namespace _details
 
-template <typename G> struct SAGConfigFile;
+template <typename G> struct EDNAConfigFile;
 } // end of namespace config
 
 namespace genotype {
@@ -266,7 +266,7 @@ namespace _details {
 
 /// Declaration of the object type containing field management data
 template <typename T, typename O, T O::* F>
-struct SAGFieldMetadata;
+struct EDNAFieldMetadata;
 
 /// Genomic fields interface. Use to effortlessly manage values in artificial
 /// genome
@@ -344,7 +344,7 @@ public:
 
 /// Helper type storing the various types used by the self aware genomes
 template <typename G>
-struct SAG_type_traits {
+struct EDNA_type_traits {
   /// The base type for this genome's field managers
   using value_t = _details::GenomeFieldInterface<G>;
 
@@ -594,7 +594,7 @@ class GenomeFieldForSubgenome : public GenomeFieldWithFunctor<T,O,OFFSET> {
 
   /// \return A functor delegating work to the managed self-awarre genome
   Functor buildFromSubgenome (void) {
-    using D = typename SAG_type_traits<T>::Dice;
+    using D = typename EDNA_type_traits<T>::Dice;
     Functor f;
     f.random = T::random;
     f.mutate = static_cast<void(*)(T&,D&)>(T::mutate);
@@ -613,7 +613,7 @@ public:
                           R &registry, int) : Base(name, alias, registry,
                                                    buildFromSubgenome()) {}
 
-  /// \returns true. This is a sag field
+  /// \returns true. This is a edna field
   bool isSubgenomeField(void) const override {
     return true;
   }
@@ -623,7 +623,7 @@ public:
 /// list of {field,rate}.
 /// Performs validity checks (though not that efficiently)
 /// \throws std::invalid_argument if a field is missing its mutation rate
-template <typename G, typename T = SAG_type_traits<G>>
+template <typename G, typename T = EDNA_type_traits<G>>
 auto buildMap(const typename T::Iterator &it,
               std::initializer_list<std::pair<const typename T::value_t*,float>> &&l) {
 
@@ -734,20 +734,20 @@ public:
 /// \par Full blown example:
 /// \snippet selfawaregenome_test.cpp selfAwareGenomeFullExample
 template <typename G>
-class SelfAwareGenome {
+class EDNA {
 protected:
   /// Helper alias to the derived type
   using this_t = G;
 
   /// Alias to helper type traits
-  using traits = _details::SAG_type_traits<G>;
+  using traits = _details::EDNA_type_traits<G>;
 
   /// Helper alias to the source of randomness
   using Dice = typename traits::Dice;
 
 public:
   /// Helper alias to the configuration type
-  using config_t = config::SAGConfigFile<G>;
+  using config_t = config::EDNAConfigFile<G>;
 
 // =============================================================================
 // == Evolutionary interface
@@ -761,12 +761,12 @@ public:
   /// \returns the genomic distance between all auto-managed fields in both
   /// arguments
   friend double distance (const G &lhs, const G &rhs) {
-    return SelfAwareGenome<G>::distance(lhs, rhs);
+    return EDNA<G>::distance(lhs, rhs);
   }
 
   /// \returns the result of crossing all auto-managed fields in both arguments
   friend G cross (const G &lhs, const G &rhs, Dice &dice) {
-    return SelfAwareGenome<G>::cross(lhs, rhs, dice);
+    return EDNA<G>::cross(lhs, rhs, dice);
   }
 
   /// \returns Whether all auto-managed fields in this genome are valid
@@ -791,7 +791,8 @@ public:
     std::string fieldName = dice.pickOne(_mutationRates.get());
     const auto &manager = _iterator.at(fieldName).get();
 
-    if (config::SAGConfigFile_common::autologMutations() && !manager.isSubgenomeField()) {
+    if (config::EDNAConfigFile_common::autologMutations()
+        && !manager.isSubgenomeField()) {
       std::cerr << "Mutated field " << fieldName << " from ";
       manager.print(std::cerr, object);
     }
@@ -799,7 +800,7 @@ public:
     manager.mutate(object, dice);
     object.mutateExtension(dice);
 
-    if (config::SAGConfigFile_common::autologMutations() && !manager.isSubgenomeField()) {
+    if (config::EDNAConfigFile_common::autologMutations() && !manager.isSubgenomeField()) {
       std::cerr << " to ";
       manager.print(std::cerr, object);
       std::cerr << std::endl;
@@ -904,7 +905,7 @@ public:
 
   /// \returns the default file extension for serialized self aware genomes
   virtual std::string extension (void) const {
-    return ".sag.json";
+    return ".edna.json";
   }
 
   /// \returns a string representation of this genome's contents
@@ -1031,7 +1032,7 @@ protected:
 
   /// Helper alias for the reference to the config-embedded mutation rates
   using DistanceWeights = std::reference_wrapper<
-    const typename config::_details::SAGConfigFileTypes<G>::DistanceWeights>;
+    const typename config::_details::EDNAConfigFileTypes<G>::DistanceWeights>;
 
   /// Reference to the config-embedded distance weights
   static const DistanceWeights _distanceWeights;
@@ -1042,29 +1043,29 @@ protected:
   }
 
   /// Downcasts the provided genome to its derived type
-  static G& downcast (SelfAwareGenome &g) { return static_cast<G&>(g);  }
+  static G& downcast (EDNA &g) { return static_cast<G&>(g);  }
 
   /// Upcasts the provided genome to its base type
-  static SelfAwareGenome& upcast (G &g) { return static_cast<SelfAwareGenome&>(g);  }
+  static EDNA& upcast (G &g) { return static_cast<EDNA&>(g);  }
 
   /// Downcasts the provided constant genome to its derived constant type
-  static const G& downcast (const SelfAwareGenome &g) {
+  static const G& downcast (const EDNA &g) {
     return static_cast<const G&>(g);
   }
 
   /// Upcasts the provided constant genome to its base type
-  static const SelfAwareGenome& upcast (const G &g) {
-    return static_cast<const SelfAwareGenome&>(g);
+  static const EDNA& upcast (const G &g) {
+    return static_cast<const EDNA&>(g);
   }
 };
 
 template <typename G>
-typename SelfAwareGenome<G>::traits::Iterator SelfAwareGenome<G>::_iterator;
+typename EDNA<G>::traits::Iterator EDNA<G>::_iterator;
 
 /// Delegates extraction to the SelfAwareGenome::getField
 template <typename T>
 struct Extractor<T,
-    typename std::enable_if<utils::is_base_template_of<SelfAwareGenome,
+    typename std::enable_if<utils::is_base_template_of<EDNA,
     T>::value, void>::type> {
   /// TODO Not documented
   std::string operator() (const T &object, const std::string &field) const {
@@ -1076,7 +1077,7 @@ struct Extractor<T,
 /// Delegates aggregation to the SelfAwareGenome::aggregate
 template <typename T, typename O>
 struct Aggregator<T, O,
-    typename std::enable_if<utils::is_base_template_of<SelfAwareGenome,
+    typename std::enable_if<utils::is_base_template_of<EDNA,
                                                        T>::value, void>::type> {
   /// TODO Not documented
   void operator() (std::ostream &os, const std::vector<O> &objects,
@@ -1106,7 +1107,7 @@ struct Aggregator<T, O,
 
 /// The template specialization for the given field
 #define __METADATA(OBJECT, TYPE, FIELD) \
-  SAGFieldMetadata<TYPE, OBJECT, &OBJECT::FIELD>
+  EDNAFieldMetadata<TYPE, OBJECT, &OBJECT::FIELD>
 
 /// The fully-qualified genome field manager name for type \p ITYE, field type
 /// \p TYPE and name \p NAME
@@ -1130,22 +1131,22 @@ struct Aggregator<T, O,
 /// \endcond
 
 /// Includes the necessary friend declarations
-#define APT_SAG()                                   \
-  friend struct config::SAGConfigFile<this_t>;      \
+#define APT_EDNA()                                  \
+  friend struct config::EDNAConfigFile<this_t>;     \
                                                     \
   template <typename O_, typename T_, T_ O_::* F_>  \
-  friend struct _details::SAGFieldMetadata;
+  friend struct _details::EDNAFieldMetadata;
 
 
 /// Hides away the CRTP and multiple inheritance
-#define SAG_CONFIG_FILE(GENOME)                           \
-  SAGConfigFile<__NMSP::GENOME>                           \
-  : public _details::SAGConfigFileTypes<__NMSP::GENOME>,  \
-    public ConfigFile<SAGConfigFile<__NMSP::GENOME>>
+#define EDNA_CONFIG_FILE(GENOME)                          \
+  EDNAConfigFile<__NMSP::GENOME>                          \
+  : public _details::EDNAConfigFileTypes<__NMSP::GENOME>, \
+    public ConfigFile<EDNAConfigFile<__NMSP::GENOME>>
 
 /// Declares that \p FIELD of \p TYPE in \p OBJECT should be automanaged (i.e
 /// automated mutations, crossing, printing, ...)
-/// \see SelfAwareGenome
+/// \see EDNA
 #define DECLARE_GENOME_FIELD(OBJECT, TYPE, FIELD)               \
   namespace _details {                                          \
   template <>                                                   \
@@ -1192,21 +1193,21 @@ struct Aggregator<T, O,
   )::metadata.get(), VALUE)
 
 /// Defines the mutation rates map for the current genome
-#define DEFINE_GENOME_MUTATION_RATES(...)       \
-  namespace config {                            \
-  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,           \
-    __SCONFIG::MR, mutationRates,               \
-    __NMSP_D::buildMap<__SGENOME>(              \
-      __SGENOME::iterator(), __VA_ARGS__        \
-    )                                           \
-  )                                             \
-  }                                             \
-                                                \
-  namespace __NMSP {                            \
-  template<>                                    \
-  const SelfAwareGenome<GENOME>::MutationRates  \
-    SelfAwareGenome<GENOME>::_mutationRates =   \
-    std::ref(__SCONFIG::mutationRates());       \
+#define DEFINE_GENOME_MUTATION_RATES(...) \
+  namespace config {                      \
+  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,     \
+    __SCONFIG::MR, mutationRates,         \
+    __NMSP_D::buildMap<__SGENOME>(        \
+      __SGENOME::iterator(), __VA_ARGS__  \
+    )                                     \
+  )                                       \
+  }                                       \
+                                          \
+  namespace __NMSP {                      \
+  template<>                              \
+  const EDNA<GENOME>::MutationRates       \
+    EDNA<GENOME>::_mutationRates =        \
+    std::ref(__SCONFIG::mutationRates()); \
   }
 
 
@@ -1223,21 +1224,21 @@ struct Aggregator<T, O,
   )::metadata.get(), VALUE)
 
 /// Defines the distance weights for the current genome
-#define DEFINE_GENOME_DISTANCE_WEIGHTS(...)       \
-  namespace config {                              \
-  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,             \
-    __SCONFIG::DW, distanceWeights,               \
-    __NMSP_D::buildMap<__SGENOME>(                \
-      __SGENOME::iterator(), __VA_ARGS__          \
-    )                                             \
-  )                                               \
-  }                                               \
-                                                  \
-  namespace __NMSP {                              \
-  template<>                                      \
-  const SelfAwareGenome<GENOME>::DistanceWeights  \
-    SelfAwareGenome<GENOME>::_distanceWeights =   \
-    std::ref(__SCONFIG::distanceWeights());       \
+#define DEFINE_GENOME_DISTANCE_WEIGHTS(...) \
+  namespace config {                        \
+  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,       \
+    __SCONFIG::DW, distanceWeights,         \
+    __NMSP_D::buildMap<__SGENOME>(          \
+      __SGENOME::iterator(), __VA_ARGS__    \
+    )                                       \
+  )                                         \
+  }                                         \
+                                            \
+  namespace __NMSP {                        \
+  template<>                                \
+  const EDNA<GENOME>::DistanceWeights       \
+    EDNA<GENOME>::_distanceWeights =        \
+    std::ref(__SCONFIG::distanceWeights()); \
 }
 
 } // end of namespace genotype

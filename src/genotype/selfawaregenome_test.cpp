@@ -13,8 +13,8 @@
 // =============================================================================
 // trivial.h
 namespace genotype {
-class InternalTrivial : public SelfAwareGenome<InternalTrivial> {
-  APT_SAG()
+class InternalTrivial : public EDNA<InternalTrivial> {
+  APT_EDNA()
 public:
   InternalTrivial(void) : floatField(0) {}
   virtual ~InternalTrivial(void) = default;
@@ -30,7 +30,7 @@ DECLARE_GENOME_FIELD(InternalTrivial, float, floatField)
 namespace genotype { class InternalTrivial; }
 namespace config {
 template <>
-struct SAG_CONFIG_FILE(InternalTrivial) {
+struct EDNA_CONFIG_FILE(InternalTrivial) {
   DECLARE_PARAMETER(B<float>, floatFieldBounds)
 
   DECLARE_PARAMETER(MR, mutationRates)
@@ -60,8 +60,8 @@ DEFINE_GENOME_DISTANCE_WEIGHTS({
 // =============================================================================
 // complex.h
 namespace genotype {
-class InternalComplex : public SelfAwareGenome<InternalComplex> {
-  APT_SAG()
+class InternalComplex : public EDNA<InternalComplex> {
+  APT_EDNA()
 public:
   InternalComplex(void) {}
   std::string stringField;
@@ -97,7 +97,7 @@ DECLARE_GENOME_FIELD(InternalComplex, std::string, stringField)
 namespace genotype { class InternalComplex; }
 namespace config {
 template <>
-struct SAG_CONFIG_FILE(InternalComplex) {
+struct EDNA_CONFIG_FILE(InternalComplex) {
   using M = MutationSettings::MutationRates;
 
   DECLARE_PARAMETER(MR, mutationRates)
@@ -185,8 +185,8 @@ std::istream& operator>> (std::istream &is, Enum &e) {
   return is;
 }
 
-struct External : public SelfAwareGenome<External> {
-  APT_SAG()
+struct External : public EDNA<External> {
+  APT_EDNA()
 public:
   External(void) {}
   virtual ~External(void) = default;
@@ -246,7 +246,7 @@ DECLARE_GENOME_FIELD(External, External::A, arrayField)
 namespace genotype { struct External; }
 namespace config {
 template <>
-struct SAG_CONFIG_FILE(External) {
+struct EDNA_CONFIG_FILE(External) {
   using A = std::array<float,2>;
 
   DECLARE_PARAMETER(B<int>, intFieldBounds)
