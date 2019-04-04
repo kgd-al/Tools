@@ -397,6 +397,9 @@ struct CRC32 {
   /// The integral type used to store the CRC
   using type = std::uint_fast32_t;
 
+  /// Number of bytes used to represent this CRC
+  static constexpr size_t bytes = 4;
+
 private:
   /// The lookup-table type
   using lookup_table_t = std::array<type, 256>;
