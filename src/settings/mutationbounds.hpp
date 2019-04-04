@@ -49,6 +49,9 @@ struct MutationSettings {
     /// Maximal value reachable through random initialisation/mutation
     T max;
 
+    /// Default value
+    Bounds (void) {}
+
     /// Use provided bounds a absolute minimal, initial minimal, initial maximal, absolute maximal
     Bounds (T min, T rndMin, T rndMax, T max)
       : min(min), rndMin(rndMin), rndMax(rndMax), max(max) {
@@ -97,6 +100,17 @@ struct MutationSettings {
       char junk;
       is >> junk >> b.min >> b.rndMin >> b.rndMax >> b.max >> junk;
       return is;
+    }
+
+    /// Stores as a simple json array
+    friend void to_json (nlohmann::json &j, const Bounds &b) {
+      j = {b.min, b.rndMin, b.rndMax, b.max};
+    }
+
+    /// Restores from a simple json array
+    friend void from_json (const nlohmann::json &j, Bounds &b) {
+      uint i=0;
+      b.min = j[i++], b.rndMin = j[i++], b.rndMax = j[i++], b.max = j[i++];
     }
   };
 

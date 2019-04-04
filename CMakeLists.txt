@@ -194,3 +194,26 @@ if(NOT \${${PROJECT_NAME}_BUILD_TYPE} STREQUAL \${CMAKE_BUILD_TYPE})
 endif()\n"
 )
 install(FILES ${CONFIG} DESTINATION cmake)
+
+set(DEPENDENCY_GENERATOR ${PROJECT_SOURCE_DIR}/scripts/generate_dependency_data.sh)
+foreach(proj cxxopts json Tools)
+    set(PROJ_DIR "${PROJECT_SOURCE_DIR}/../${proj}")
+    set(DEPENDENCY_FILE "${CMAKE_CURRENT_BINARY_DIR}/${proj}.dependency")
+    list(APPEND DEPENDENCIES ${DEPENDENCY_FILE})
+    add_custom_command(
+        OUTPUT ${DEPENDENCY_FILE}
+        COMMAND ${DEPENDENCY_GENERATOR} ${DEPENDENCY_FILE} Tools
+        WORKING_DIRECTORY ${PROJ_DIR}
+        COMMENT "Generating dependency data for ${proj} in ${PROJ_DIR}"
+        DEPENDS always_check
+    )
+    install(FILES ${DEPENDENCY_FILE} DESTINATION cmake)
+endforeach()
+add_custom_target(dependencies ALL DEPENDS ${DEPENDENCIES})
+add_custom_command(OUTPUT always_check COMMAND cmake -E echo)
+install(FILES ${DEPENDENCY_GENERATOR} DESTINATION cmake
+        PERMISSIONS
+            OWNER_READ OWNER_WRITE OWNER_EXECUTE
+            GROUP_READ GROUP_EXECUTE
+            WORLD_READ WORLD_EXECUTE
+)

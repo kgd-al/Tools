@@ -228,6 +228,18 @@ AbstractConfigFile::read(ConfigIterator &it,
   return res;
 }
 
+void AbstractConfigFile::serialize (const ConfigIterator &iterator,
+                                    nlohmann::json &j) {
+  for (const auto &p: iterator)
+      p.second.toJson(j[p.first]);
+}
+
+void AbstractConfigFile::deserialize (ConfigIterator &iterator,
+                                      const nlohmann::json &j) {
+  for (auto &p: iterator)
+    p.second.fromJson(j[p.first]);
+}
+
 
 // =================================================================================================
 // Non-template config value base

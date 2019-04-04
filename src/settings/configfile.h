@@ -10,8 +10,7 @@
 #include <experimental/filesystem>
 namespace stdfs = std::experimental::filesystem;
 
-//#include <experimental/filesystem>
-//namespace stdfs = std::experimental::filesystem;
+#include "../external/json.hpp"
 
 #include "../utils/utils.h"
 #include "prettystreamers.hpp"
@@ -56,7 +55,7 @@ namespace config {
 //! \brief Returns a single string containing all valid verbosity values (for user information)
 std::string verbosityValues (void);
 
-// =================================================================================================
+// =============================================================================
 // Parameter defining macros
 
 /// @cond internal
@@ -74,6 +73,9 @@ std::string verbosityValues (void);
 /// Hide CRTP from config file declaration
 #define CONFIG_FILE(NAME) \
   NAME : public ConfigFile<NAME>
+
+// ====================================
+// Common parameters
 
 /// Declares a config value with given \p TYPE and \p NAME
 #define DECLARE_PARAMETER(TYPE, NAME) \
@@ -97,6 +99,22 @@ std::string verbosityValues (void);
 #define DEFINE_MAP_PARAMETER(TYPE, NAME, ...) \
   DEFINE_PARAMETER_FOR(CFILE, TYPE, NAME, TYPE(__VA_ARGS__))
 
+// ====================================
+// Constant parameters
+
+/// Declares a constant config value of type \p TYPE named \p NAME
+#define DECLARE_CONST_PARAMETER(TYPE, NAME) \
+  static ConstConfigValue<TYPE> NAME;
+
+/// Defines a constant config value with given \p TYPE and \p NAME build from
+/// the variadic arguments
+#define DEFINE_CONST_PARAMETER(TYPE, NAME, ...) \
+  CFILE::ConstConfigValue<TYPE> CFILE::NAME (config_iterator(), #NAME, __VA_ARGS__);
+
+
+// ====================================
+// Constexpr (debug) parameters
+
 #ifndef NDEBUG
 /// Declares a config value of type \p TYPE name \p NAME iff the NDEBUG macro is undefined
 #define DECLARE_DEBUG_PARAMETER(TYPE, NAME, ...) \
@@ -110,7 +128,7 @@ std::string verbosityValues (void);
 
 /// Declares a compile-constant config value of type \p TYPE named \p NAME iff NDEBUG macro is defined
 #define DECLARE_DEBUG_PARAMETER(TYPE, NAME, ...) \
-  static constexpr ConstConfigValue<TYPE> NAME { __VA_ARGS__ };
+  static constexpr ConstexprConfigValue<TYPE> NAME { __VA_ARGS__ };
 
 /// No-op if the NDEBUG macro is defined (variable is compile-constant and header only)
 #define DEFINE_DEBUG_PARAMETER(TYPE, NAME, ...)
@@ -126,13 +144,13 @@ std::string verbosityValues (void);
   CFILE::SubconfigFile<TYPE> CFILE::NAME (config_iterator(), #NAME);
 
 
-// =================================================================================================
+// =============================================================================
 // String convertible enums
 
 /// \cond internal
 namespace _details {
 
-// =================================================================================================
+// =============================================================================
 /// \brief Non-template config file base
 struct AbstractConfigFile {
 protected:
@@ -178,8 +196,16 @@ protected:
     /// Provides a common interface. See ConfigValue::output and TSubconfigFile::output.
     virtual std::ostream& output (std::ostream &os) const = 0;
 
-    /// Delegates work the overriden performInput unless the current source has higher precedance
+    /// Delegates work to the overriden performInput unless the current source has higher precedance
     bool input (const std::string &s, Origin o);
+
+    /// Provides a common interface.
+    /// See ConfigValue::toJson and TSubconfigFile::toJson.
+    virtual void toJson (nlohmann::json &j) const = 0;
+
+    /// Provides a common interface.
+    /// See ConfigValue::fromJson and TSubconfigFile::fromJson.
+    virtual void fromJson (const nlohmann::json &j) = 0;
 
     /// \returns the name (key) of this config value
     const std::string& name (void) const {
@@ -236,6 +262,16 @@ protected:
       return os;
     }
 
+    /// Stores value into the provided json
+    void toJson (nlohmann::json &j) const override {
+      j = { _origin, _value};
+    }
+
+    /// Restores value from the provided json
+    void fromJson (const nlohmann::json &j) override {
+      _origin = j[0], _value = j[1].get<T>();
+    }
+
   private:
     /// The stored value
     T _value;
@@ -260,23 +296,65 @@ protected:
     }
   };
 
-  /// Placeholder for a compile-constant wrapper for values of type \p T
-  /// \tparam T the value contained by this item (e.g. int, float, double, map<...>, ...)
+  /// Placeholder for a constant wrapper for values of type \p T
+  /// \tparam T the value contained by this item
+  ///  (e.g. int, float, double, map<...>, ...)
   template <typename T>
-  struct ConstConfigValue {
+  struct ConstConfigValue : public IConfigValue {
 
     /// Builds a compile-constant value for type T
     template <typename... ARGS>
-    constexpr ConstConfigValue (ARGS&&... args) : _value(std::forward<ARGS>(args)...) {}
+    ConstConfigValue (ConfigIterator &registrationDeck, const char *name, ARGS&&... args)
+      : IConfigValue(registrationDeck, name), _value(std::forward<ARGS>(args)...) {}
 
     /// Access the compile-constant value stored by this item
-    constexpr const T& operator() (void) const {
-      return _value;
+    const T& operator() (void) const {  return _value;  }
+
+    /// Delegate writting this item to the appropriate PrettyWriter
+    std::ostream& output(std::ostream &os) const override {
+      PrettyWriter<T>()(os, _value);
+      return os;
+    }
+
+    /// Stores value into the provided json
+    void toJson (nlohmann::json &j) const override {
+      j = _value;
+    }
+
+    /// Restores value from the provided json
+    void fromJson (const nlohmann::json &j) override {
+      _value = j.get<T>();
     }
 
   private:
-    /// The compile-constant value
-    T _value;
+    T _value; ///< The compile-constant value
+
+    /// Run-time knowledge of the stored type
+    const std::string& typeName (void) const override {
+      static const std::string _localTypeName = utils::className<T>();
+      return _localTypeName;
+    }
+
+    /// Does nothing
+    bool performInput (const std::string &) override { return true; }
+  };
+
+  /// Placeholder for a compile-constant wrapper for values of type \p T
+  /// \tparam T the value contained by this item
+  /// (e.g. int, float, double, map<...>, ...)
+  template <typename T>
+  struct ConstexprConfigValue {
+
+    /// Builds a compile-constant value for type T
+    template <typename... ARGS>
+    constexpr ConstexprConfigValue (ARGS&&... args)
+      : _value(std::forward<ARGS>(args)...) {}
+
+    /// Access the compile-constant value stored by this item
+    constexpr const T& operator() (void) const {  return _value;  }
+
+  private:
+    T _value; ///< The compile-constant value
   };
 
   /// Base class for a ConfigValue holding a reference to a child configuration file
@@ -335,6 +413,9 @@ protected:
     bool performInput (const std::string &s) override {
       return C::readConfig(s);
     }
+
+    void toJson (nlohmann::json &j) const override {  C::serialize(j);  }
+    void fromJson (const nlohmann::json &j) override {  C::deserialize(j);  }
   };
 
   /// Delegate printing out generic config value to their appropriate overloaded output function
@@ -396,12 +477,18 @@ public:
   static ReadResult read (ConfigIterator &it,
                           const std::string &name,
                           std::istream &is);
+
+  /// Records this parameters and subconfig files into the provided json
+  static void serialize (const ConfigIterator &iterator, nlohmann::json &j);
+
+  /// Restores this parameters and subconfig files from the provided json
+  static void deserialize (ConfigIterator &iterator, const nlohmann::json &j);
 };
 
 } // end of namespace _details
 /// \endcond
 
-// =================================================================================================
+// =============================================================================
 // Config file template implementation
 
 /// \copydoc configfile.h
@@ -514,6 +601,16 @@ public:
       printConfig(path, "Updating");
 
     return res == OK;
+  }
+
+  /// Delegate serialization to the abstract version
+  static void serialize (nlohmann::json &j) {
+    _details::AbstractConfigFile::serialize(config_iterator(), j);
+  }
+
+  /// Delegate deserialization to the abstract version
+  static void deserialize (const nlohmann::json &j) {
+    _details::AbstractConfigFile::deserialize(config_iterator(), j);
   }
 
   /// Access a configuration value by its name
