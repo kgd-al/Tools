@@ -345,6 +345,17 @@ std::string unquote (std::string str);
 /// \return The elements in the \p delim separated list \p s
 std::vector<std::string> split(const std::string &s, char delim);
 
+/// \return The elements in the provided iterable delimited by \p delim
+template <typename IT>
+std::string join (const IT &begin, const IT &end, const std::string &delim) {
+  std::string s;
+  for (IT it = begin; it != end; ++it) {
+    if (it != begin) s += delim;
+    s += *it;
+  }
+  return s;
+}
+
 /// \return the contents of \p filename as a single string
 std::string readAll (const std::string &filename);
 

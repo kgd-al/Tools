@@ -189,6 +189,11 @@ protected:
     /// If the environment contains a value from this field, use it
     void checkEnv (const char *name);
 
+    /// Whether this value can be updated
+    virtual bool updatable (void) const {
+      return true;
+    }
+
   public:
     /// Build a config value named \p name and register it
     IConfigValue (ConfigIterator &registrationDeck, const char *name);
@@ -324,6 +329,11 @@ protected:
     /// Restores value from the provided json
     void fromJson (const nlohmann::json &j) override {
       _value = j.get<T>();
+    }
+
+  protected:
+    bool updatable (void) const override {
+      return false;
     }
 
   private:

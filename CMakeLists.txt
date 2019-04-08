@@ -198,7 +198,8 @@ install(FILES ${CONFIG} DESTINATION cmake)
 set(DEPENDENCY_GENERATOR ${PROJECT_SOURCE_DIR}/scripts/generate_dependency_data.sh)
 foreach(proj cxxopts json Tools)
     set(PROJ_DIR "${PROJECT_SOURCE_DIR}/../${proj}")
-    set(DEPENDENCY_FILE "${CMAKE_CURRENT_BINARY_DIR}/${proj}.dependency")
+    string(TOLOWER ${proj} proj_l)
+    set(DEPENDENCY_FILE "${CMAKE_CURRENT_BINARY_DIR}/${proj_l}.dependency")
     list(APPEND DEPENDENCIES ${DEPENDENCY_FILE})
     add_custom_command(
         OUTPUT ${DEPENDENCY_FILE}

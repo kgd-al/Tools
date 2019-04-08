@@ -253,6 +253,9 @@ AbstractConfigFile::IConfigValue::IConfigValue (
 }
 
 bool AbstractConfigFile::IConfigValue::input (const std::string &s, Origin o) {
+  // Only update if the final type allows it
+  if (!updatable()) return true;
+
   // Environmental and override values have final say
   if (_origin < ENVIRONMENT) {
 
