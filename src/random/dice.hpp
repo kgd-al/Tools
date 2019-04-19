@@ -410,6 +410,11 @@ public:
   friend void deserialize (std::istream &is, FastDice &d) {
     is >> d._rng;
   }
+
+  /// Asserts that two dices are equal (i-e will produce the same sequence)
+  friend void assertEqual (const FastDice &lhs, const FastDice &rhs) {
+    if (!(lhs == rhs))  throw std::logic_error("Dice have different states");
+  }
 };
 
 

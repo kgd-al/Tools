@@ -1,8 +1,8 @@
 #!/bin/bash
 
-if [ $# -ne 2 ]
+if [ $# -ne 3 ]
 then
-  echo "Usage: $0 <outfile> <name>"
+  echo "Usage: $0 <outfile> <name> <build-type>"
   exit 10
 fi
 
@@ -17,4 +17,4 @@ echo "commitHash: $commitHash" > $out
 echo "commitMsg: $commitMessage" >> $out
 echo "commitDate: $commitDate" >> $out
 [ "$2" = "$name" ] && echo "buildDate: $buildDate" >> $out
-echo >> $out
+[ "$3" = "-" ] || echo "buildType: $3" >> $out

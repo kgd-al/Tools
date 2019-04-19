@@ -163,7 +163,15 @@ protected:
   struct IConfigValue {
 
     /// Specify where the current value comes from
-    enum Origin { DEFAULT = 0, FILE = 1, ENVIRONMENT = 2, OVERRIDE = 3, ERROR = 10 };
+    enum Origin {
+      DEFAULT = 0,      ///< Built-in value
+      FILE = 1,         ///< Value read from a config file
+      LOAD = 2,         ///< Value restored from a savefile
+      ENVIRONMENT = 3,  ///< Value provided by the environment
+      OVERRIDE = 4,     ///< Value overriden by code
+      CONSTANT = 5,     ///< Constant built-in value (\see ConstConfigValue)
+      ERROR = 10
+    };
 
   private:
 
@@ -189,14 +197,10 @@ protected:
     /// If the environment contains a value from this field, use it
     void checkEnv (const char *name);
 
-    /// Whether this value can be updated
-    virtual bool updatable (void) const {
-      return true;
-    }
-
   public:
     /// Build a config value named \p name and register it
-    IConfigValue (ConfigIterator &registrationDeck, const char *name);
+    IConfigValue (ConfigIterator &registrationDeck, const char *name,
+                  Origin origin = DEFAULT);
 
     /// Provides a common interface. See ConfigValue::output and TSubconfigFile::output.
     virtual std::ostream& output (std::ostream &os) const = 0;
@@ -255,10 +259,13 @@ protected:
 
     /// Replaces current value with provided one
     T overrideWith (T other) {
-      _origin = OVERRIDE;
-      T tmp = _value;
-      _value = other;
-      return tmp;
+      if (_origin < OVERRIDE) {
+        _origin = OVERRIDE;
+        T tmp = _value;
+        _value = other;
+        return tmp;
+      }
+      return _value;
     }
 
     /// Delegate writting this item to the appropriate PrettyWriter
@@ -269,12 +276,15 @@ protected:
 
     /// Stores value into the provided json
     void toJson (nlohmann::json &j) const override {
-      j = { _origin, _value};
+      j = _value;
     }
 
     /// Restores value from the provided json
     void fromJson (const nlohmann::json &j) override {
-      _origin = j[0], _value = j[1].get<T>();
+      if (_origin < LOAD) {
+        _origin = LOAD;
+        _value = j.get<T>();
+      }
     }
 
   private:
@@ -309,8 +319,10 @@ protected:
 
     /// Builds a compile-constant value for type T
     template <typename... ARGS>
-    ConstConfigValue (ConfigIterator &registrationDeck, const char *name, ARGS&&... args)
-      : IConfigValue(registrationDeck, name), _value(std::forward<ARGS>(args)...) {}
+    ConstConfigValue (ConfigIterator &registrationDeck, const char *name,
+                      ARGS&&... args)
+      : IConfigValue(registrationDeck, name, CONSTANT),
+        _value(std::forward<ARGS>(args)...) {}
 
     /// Access the compile-constant value stored by this item
     const T& operator() (void) const {  return _value;  }
@@ -329,11 +341,6 @@ protected:
     /// Restores value from the provided json
     void fromJson (const nlohmann::json &j) override {
       _value = j.get<T>();
-    }
-
-  protected:
-    bool updatable (void) const override {
-      return false;
     }
 
   private:
@@ -424,8 +431,14 @@ protected:
       return C::readConfig(s);
     }
 
-    void toJson (nlohmann::json &j) const override {  C::serialize(j);  }
-    void fromJson (const nlohmann::json &j) override {  C::deserialize(j);  }
+    void toJson (nlohmann::json &j) const override {
+      C::serialize(j);
+    }
+
+    void fromJson (const nlohmann::json &j) override {
+      _origin = LOAD;
+      C::deserialize(j);
+    }
   };
 
   /// Delegate printing out generic config value to their appropriate overloaded output function
@@ -489,10 +502,14 @@ public:
                           std::istream &is);
 
   /// Records this parameters and subconfig files into the provided json
-  static void serialize (const ConfigIterator &iterator, nlohmann::json &j);
+  static void serialize (const ConfigIterator &iterator,
+                         const stdfs::path &path,
+                         nlohmann::json &j);
 
   /// Restores this parameters and subconfig files from the provided json
-  static void deserialize (ConfigIterator &iterator, const nlohmann::json &j);
+  static void deserialize (ConfigIterator &iterator,
+                           stdfs::path &path,
+                           const nlohmann::json &j);
 };
 
 } // end of namespace _details
@@ -615,25 +632,23 @@ public:
 
   /// Delegate serialization to the abstract version
   static void serialize (nlohmann::json &j) {
-    _details::AbstractConfigFile::serialize(config_iterator(), j);
+    _details::AbstractConfigFile::serialize(config_iterator(), _path, j);
   }
 
   /// Delegate deserialization to the abstract version
   static void deserialize (const nlohmann::json &j) {
-    _details::AbstractConfigFile::deserialize(config_iterator(), j);
+    _details::AbstractConfigFile::deserialize(config_iterator(), _path, j);
   }
 
   /// Access a configuration value by its name
   static IConfigValue& configValue (const std::string &name) {
     auto it = config_iterator().find(name);
-    if (it == config_iterator().end()) {
-      std::ostringstream oss;
-      oss << "Unable to find configuration value '"
-          << name << "' in " << ConfigFile::name() << std::endl;
-      //            LOG(FATAL, INT_MAX) << oss.str().c_str();
-      throw std::invalid_argument(oss.str());
+    if (it == config_iterator().end())
+      utils::doThrow<std::invalid_argument>(
+        "Unable to find configuration value '", name, "' in ",
+        ConfigFile::name());
 
-    } else return it->second;
+    return it->second;
   }
 };
 

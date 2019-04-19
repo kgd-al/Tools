@@ -3,6 +3,7 @@
 
 #include "cxxabi.h"
 
+#include <cmath>
 #include <numeric>
 #include <algorithm>
 #include <regex>
@@ -167,7 +168,10 @@ struct is_stl_container_like {
             std::is_same<decltype(pt->end()),iterator>::value &&
             std::is_same<decltype(cpt->begin()),const_iterator>::value &&
             std::is_same<decltype(cpt->end()),const_iterator>::value &&
-            std::is_same<decltype(**pi),value_type &>::value &&
+            (
+                 std::is_same<decltype(**pi),value_type &>::value
+              || std::is_same<decltype(**pi),value_type const &>::value
+            ) &&
             std::is_same<decltype(**pci),value_type const &>::value;
   }
 
@@ -375,6 +379,92 @@ bool getEnv (const char *name, T &value) {
   }
   return false;
 }
+
+
+// =============================================================================
+
+/// Allows comparison of NaN values for types with such values
+template <typename T>
+constexpr std::enable_if_t<std::numeric_limits<T>::has_quiet_NaN, bool>
+assertNaNEqual (const T &lhs, const T &rhs) {
+  return std::isnan(lhs) && std::isnan(rhs);
+}
+
+/// Types with no NaN values return false
+template <typename T>
+constexpr std::enable_if_t<!std::numeric_limits<T>::has_quiet_NaN, bool>
+assertNaNEqual (const T&, const T&) {   return false;   }
+
+/// Asserts that two fundamental values are equal
+template <typename T>
+std::enable_if_t<std::is_fundamental<T>::value, void>
+assertEqual (const T &lhs, const T &rhs) {
+  if (lhs != rhs && !assertNaNEqual(lhs, rhs))
+    doThrow<std::logic_error>("Assert equal violated: ", lhs, " != ", rhs);
+}
+
+/// Asserts that two enumeration values are equal
+template <typename T>
+std::enable_if_t<std::is_enum<T>::value, void>
+assertEqual (const T &lhs, const T &rhs) {
+  using ut = typename std::underlying_type<T>::type;
+  assertEqual(ut(lhs), ut(rhs));
+}
+
+/// Asserts that two pointed-to values are equal
+template <typename T>
+void assertEqual (T const * const &lhs, T const * const &rhs) {
+  assertEqual(bool(lhs), bool(rhs));
+  if (lhs && rhs) assertEqual(*lhs, *rhs);
+}
+
+/// Asserts that two uniquely pointed-to values are equal
+template <typename T>
+void assertEqual (const std::unique_ptr<T> &lhs, const std::unique_ptr<T> &rhs) {
+  assertEqual(bool(lhs), bool(rhs));
+  if (lhs && rhs) assertEqual(*lhs, *rhs);
+}
+
+/// Asserts that two shared pointed-to values are equal
+template <typename T>
+void assertEqual (const std::shared_ptr<T> &lhs, const std::shared_ptr<T> &rhs) {
+  assertEqual(bool(lhs), bool(rhs));
+  if (lhs && rhs) assertEqual(*lhs, *rhs);
+}
+
+/// Asserts that two pairs are equal
+template <typename T1, typename T2>
+void assertEqual (const std::pair<T1,T2> &lhs, const std::pair<T1,T2> &rhs) {
+  assertEqual(lhs.first, rhs.first);
+  assertEqual(lhs.second, rhs.second);
+}
+
+/// Asserts that two stl containers are equal
+template <typename T>
+std::enable_if_t<is_stl_container_like<T>::value, void>
+assertEqual (const T &lhs, const T &rhs) {
+  auto lhsB = std::begin(lhs), lhsE = std::end(lhs),
+       rhsB = std::begin(rhs), rhsE = std::end(rhs);
+  assertEqual(std::distance(lhsB, lhsE), std::distance(rhsB, rhsE));
+
+  for (auto lhsIt = lhsB, rhsIt = rhsB; lhsIt != lhsE; ++lhsIt, ++rhsIt)
+    assertEqual(*lhsIt, *rhsIt);
+}
+
+/// Asserts that two stl containers are equal after sorting
+template <typename T, typename P, typename V = typename T::value_type>
+std::enable_if_t<is_stl_container_like<T>::value
+              && std::is_nothrow_invocable_r<bool, P, V, V>::value, void>
+assertEqual (const T &lhs, const T &rhs, const P &predicate) {
+  std::vector<V> lhsSorted (lhs.begin(), lhs.end());
+  std::sort(lhsSorted.begin(), lhsSorted.end(), predicate);
+
+  std::vector<V> rhsSorted (rhs.begin(), rhs.end());
+  std::sort(rhsSorted.begin(), rhsSorted.end(), predicate);
+
+  assertEqual(lhsSorted, rhsSorted);
+}
+
 
 // =============================================================================
 

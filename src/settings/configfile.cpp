@@ -24,8 +24,10 @@ AbstractConfigFile::IConfigValue::_prefixes = [] {
   std::map<Origin, std::string> map {
     {     Origin::DEFAULT, "D" },
     {        Origin::FILE, "F" },
+    {        Origin::LOAD, "L" },
     { Origin::ENVIRONMENT, "E" },
     {    Origin::OVERRIDE, "O" },
+    {    Origin::CONSTANT, "C" },
     {       Origin::ERROR, "!" },
   };
 
@@ -229,13 +231,17 @@ AbstractConfigFile::read(ConfigIterator &it,
 }
 
 void AbstractConfigFile::serialize (const ConfigIterator &iterator,
+                                    const stdfs::path &path,
                                     nlohmann::json &j) {
+  j["path"] = path;
   for (const auto &p: iterator)
       p.second.toJson(j[p.first]);
 }
 
 void AbstractConfigFile::deserialize (ConfigIterator &iterator,
+                                      stdfs::path &path,
                                       const nlohmann::json &j) {
+  path = j["path"].get<stdfs::path>();
   for (auto &p: iterator)
     p.second.fromJson(j[p.first]);
 }
@@ -245,19 +251,17 @@ void AbstractConfigFile::deserialize (ConfigIterator &iterator,
 // Non-template config value base
 
 AbstractConfigFile::IConfigValue::IConfigValue (
-    AbstractConfigFile::ConfigIterator &registrationDeck, const char *name)
-  : _origin(DEFAULT), _name(name) {
+    AbstractConfigFile::ConfigIterator &registrationDeck, const char *name,
+    Origin origin)
+  : _origin(origin), _name(name) {
 
   // Register into ConfigFile container
   registrationDeck.insert({_name, *this});
 }
 
 bool AbstractConfigFile::IConfigValue::input (const std::string &s, Origin o) {
-  // Only update if the final type allows it
-  if (!updatable()) return true;
-
   // Environmental and override values have final say
-  if (_origin < ENVIRONMENT) {
+  if (_origin < o) {
 
     try {
 

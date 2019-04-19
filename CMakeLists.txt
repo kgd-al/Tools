@@ -58,6 +58,8 @@ set(SOURCES
     "src/utils/shell.hpp"
     "src/utils/functions.h"
     "src/utils/functions.cpp"
+    "src/utils/indentingostream.h"
+    "src/utils/indentingostream.cpp"
 )
 set (EXTERNALS
     "src/external/cxxopts.hpp"
@@ -195,15 +197,22 @@ endif()\n"
 )
 install(FILES ${CONFIG} DESTINATION cmake)
 
+set(BUILDABLES "Tools")
 set(DEPENDENCY_GENERATOR ${PROJECT_SOURCE_DIR}/scripts/generate_dependency_data.sh)
 foreach(proj cxxopts json Tools)
     set(PROJ_DIR "${PROJECT_SOURCE_DIR}/../${proj}")
     string(TOLOWER ${proj} proj_l)
     set(DEPENDENCY_FILE "${CMAKE_CURRENT_BINARY_DIR}/${proj_l}.dependency")
     list(APPEND DEPENDENCIES ${DEPENDENCY_FILE})
+    if (${proj} IN_LIST BUILDABLES)
+        set(BUILD_TYPE ${CMAKE_BUILD_TYPE})
+    else()
+        set(BUILD_TYPE "-")
+    endif()
     add_custom_command(
         OUTPUT ${DEPENDENCY_FILE}
-        COMMAND ${DEPENDENCY_GENERATOR} ${DEPENDENCY_FILE} Tools
+        COMMAND ${DEPENDENCY_GENERATOR}
+            ${DEPENDENCY_FILE} Tools ${BUILD_TYPE}
         WORKING_DIRECTORY ${PROJ_DIR}
         COMMENT "Generating dependency data for ${proj} in ${PROJ_DIR}"
         DEPENDS always_check

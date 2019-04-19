@@ -1,7 +1,6 @@
 #ifndef _SELF_AWARE_GENOME_H_
 #define _SELF_AWARE_GENOME_H_
 
-#include <ostream>
 #include <iomanip>
 #include <string>
 #include <map>
@@ -12,6 +11,7 @@
 #include <atomic>
 
 #include "../utils/utils.h"
+#include "../utils/indentingostream.h"
 #include "../external/json.hpp"
 #include "../settings/configfile.h"
 #include "../settings/mutationbounds.hpp"
@@ -324,6 +324,9 @@ public:
   /// \returns Whether the corresponding field is in the valid range
   virtual bool check (G &genome) const = 0;
 
+  /// Asserts that the fields match in both genomes
+  virtual void assertEqual (const G &lhs, const G &rhs) const = 0;
+
   /// Dumps the corresponding field's value into the provided json
   virtual void to_json (nlohmann::json &j, const G &object) const = 0;
 
@@ -416,6 +419,11 @@ public:
 
   bool equal(const O &lhs, const O &rhs) const override {
     return get(lhs) == get(rhs);
+  }
+
+  void assertEqual(const O &lhs, const O &rhs) const override {
+    using utils::assertEqual;
+    assertEqual(get(lhs), get(rhs));
   }
 
   void to_json (nlohmann::json &j, const O &object) const override {
@@ -665,53 +673,6 @@ auto buildMap(const typename T::Iterator &it,
 //template <typename T1, typename T2>
 //struct Checker;
 
-/// Manages indentation for provided ostream
-/// \author James Kanze @ https://stackoverflow.com/a/9600752
-class IndentingOStreambuf : public std::streambuf {
-  static constexpr uint INDENT = 2; ///< Indentation between hierarchical levels
-
-  std::ostream*       _owner;   ///< Associated ostream
-  std::streambuf*     _buffer;  ///< Associated buffer
-  bool                _isAtStartOfLine; ///< Whether to insert indentation
-  const std::string   _indent;  ///< Indentation value
-
-protected:
-  /// Overrides std::basic_streambuf::overflow to insert indentation at line start
-  virtual int overflow (int ch) {
-    if ( _isAtStartOfLine && ch != '\n' )
-      _buffer->sputn(_indent.data(), _indent.size());
-    _isAtStartOfLine = (ch == '\n');
-    return _buffer->sputc(ch);
-  }
-
-  /// \returns index of indent-storage space inside the ios_base static region
-  static uint index (void) {
-    static uint i = std::ios_base::xalloc();
-    return i;
-  }
-
-  /// \returns the indent level for the associated level
-  uint indent (uint di = 0) {
-    long &i = _owner->iword(index());
-    if (di != 0)  i += di;
-    return i;
-  }
-
-public:
-  /// Creates a proxy buffer managing indentation level
-  explicit IndentingOStreambuf(std::ostream& dest)
-    : _owner(&dest), _buffer(dest.rdbuf()),
-      _isAtStartOfLine(true), _indent(indent(INDENT), ' ' ) {
-      _owner->rdbuf( this );
-  }
-
-  /// Returns control of the buffer to its owner
-  virtual ~IndentingOStreambuf(void) {
-    _owner->rdbuf(_buffer);
-    indent(-INDENT);
-  }
-};
-
 /// \endcond
 } // end of namespace _details
 
@@ -863,6 +824,11 @@ public:
     return get(*it).getField(object, subField);
   }
 
+  /// Asserts that both genomes are equal
+  friend void assertEqual (const G &lhs, const G &rhs) {
+    for (const auto &it: _iterator) get(it).assertEqual(lhs, rhs);
+  }
+
   /// Shorter alias to the json type
   using json = nlohmann::json;
 
@@ -943,7 +909,7 @@ public:
       utils::doThrow<std::invalid_argument>(
         "Aggregating ", objects.size(), " makes no sense...");
 
-    _details::IndentingOStreambuf indent(os);
+    utils::IndentingOStreambuf indent(os);
     for (auto &it: _iterator) {
       os << get(it).alias() << ": ";
       get(it).aggregate(os, objects, verbosity);
@@ -956,7 +922,7 @@ public:
 // == Operators
   /// Stream all auto-managed fields to \p os
   friend std::ostream& operator<< (std::ostream &os, const G &g) {
-    _details::IndentingOStreambuf indent(os);
+    utils::IndentingOStreambuf indent(os);
     os << "\n";
     for (auto &it: _iterator) {
       os << get(it).alias() << ": ";
