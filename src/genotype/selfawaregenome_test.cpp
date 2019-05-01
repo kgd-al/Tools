@@ -45,11 +45,11 @@ struct EDNA_CONFIG_FILE(InternalTrivial) {
 DEFINE_GENOME_FIELD_WITH_BOUNDS(float, floatField, "ff", -4.f, 0.f, 0.f, 4.f)
 
 DEFINE_GENOME_MUTATION_RATES({
-  MUTATION_RATE(floatField, 1.f ),
+  __EDNA_PAIR(floatField, 1.f ),
 })
 
 DEFINE_GENOME_DISTANCE_WEIGHTS({
-  DISTANCE_WEIGHT(floatField, 1.f ),
+  __EDNA_PAIR(floatField, 1.f ),
 })
 
 #undef GENOME
@@ -158,11 +158,11 @@ static const auto stringFunctor = [] {
 DEFINE_GENOME_FIELD_WITH_FUNCTOR(std::string, stringField, "sf", stringFunctor())
 
 DEFINE_GENOME_MUTATION_RATES({
-  MUTATION_RATE(stringField, 1.f ),
+  __EDNA_PAIR(stringField, 1.f ),
 })
 
 DEFINE_GENOME_DISTANCE_WEIGHTS({
-  DISTANCE_WEIGHT(stringField, 1.f ),
+  __EDNA_PAIR(stringField, 1.f ),
 })
 
 #undef GENOME
@@ -297,19 +297,19 @@ using A = genotype::GENOME::A;
 DEFINE_GENOME_FIELD_WITH_BOUNDS(A, arrayField, "af", A{-10,0}, A{0,10})
 
 DEFINE_GENOME_MUTATION_RATES({
-  MUTATION_RATE(   intField, 2.f ),
-  MUTATION_RATE(  enumField, 1.f ),
-  MUTATION_RATE( arrayField, 4.f ),
-  MUTATION_RATE(vectorField, 4.f ),
-  MUTATION_RATE(   recField, 4.f ),
+  __EDNA_PAIR(   intField, 2.f ),
+  __EDNA_PAIR(  enumField, 1.f ),
+  __EDNA_PAIR( arrayField, 4.f ),
+  __EDNA_PAIR(vectorField, 4.f ),
+  __EDNA_PAIR(   recField, 4.f ),
 })
 
 DEFINE_GENOME_DISTANCE_WEIGHTS({
-  DISTANCE_WEIGHT(   intField, 2.f ),
-  DISTANCE_WEIGHT(  enumField, 1.f ),
-  DISTANCE_WEIGHT( arrayField, 4.f ),
-  DISTANCE_WEIGHT(vectorField, 4.f ),
-  DISTANCE_WEIGHT(   recField, 4.f ),
+  __EDNA_PAIR(   intField, 2.f ),
+  __EDNA_PAIR(  enumField, 1.f ),
+  __EDNA_PAIR( arrayField, 4.f ),
+  __EDNA_PAIR(vectorField, 4.f ),
+  __EDNA_PAIR(   recField, 4.f ),
 })
 
 #undef GENOME

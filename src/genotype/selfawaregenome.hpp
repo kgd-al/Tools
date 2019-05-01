@@ -1146,8 +1146,8 @@ struct Aggregator<T, O,
 #define GENOME_FIELD_FUNCTOR(TYPE, NAME) \
   __TARGS(GenomeFieldWithFunctor, TYPE, NAME)::Functor
 
-/// Defines an object linking a mutation rate to an automatic field manager
-#define MUTATION_RATE(NAME, VALUE)        \
+/// Defines an object linking a rate to an automatic field manager
+#define __EDNA_PAIR(NAME, VALUE)          \
   std::pair<                              \
     __NMSP_D::GenomeFieldInterface<       \
       __SGENOME                           \
@@ -1175,19 +1175,6 @@ struct Aggregator<T, O,
     EDNA<GENOME>::_mutationRates =        \
     std::ref(__SCONFIG::mutationRates()); \
   }
-
-
-/// Defines an object linking a distance weight to an automatic field manager
-#define DISTANCE_WEIGHT(NAME, VALUE)      \
-  std::pair<                              \
-    __NMSP_D::GenomeFieldInterface<       \
-      __SGENOME                           \
-    >*, float                             \
-  >(genotype::_details::__METADATA(       \
-    __SGENOME,                            \
-    decltype(__SGENOME::NAME),            \
-    NAME                                  \
-  )::metadata.get(), VALUE)
 
 /// Defines the distance weights for the current genome
 #define DEFINE_GENOME_DISTANCE_WEIGHTS(...) \
