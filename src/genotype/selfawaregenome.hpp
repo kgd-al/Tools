@@ -1147,15 +1147,15 @@ struct Aggregator<T, O,
   __TARGS(GenomeFieldWithFunctor, TYPE, NAME)::Functor
 
 /// Defines an object linking a rate to an automatic field manager
-#define __EDNA_PAIR(NAME, VALUE)          \
-  std::pair<                              \
-    __NMSP_D::GenomeFieldInterface<       \
-      __SGENOME                           \
-    >*, float                             \
-  >(genotype::_details::__METADATA(       \
-    __SGENOME,                            \
-    decltype(__SGENOME::NAME),            \
-    NAME                                  \
+#define EDNA_PAIR(NAME, VALUE)      \
+  std::pair<                        \
+    __NMSP_D::GenomeFieldInterface< \
+      __SGENOME                     \
+    >*, float                       \
+  >(genotype::_details::__METADATA( \
+    __SGENOME,                      \
+    decltype(__SGENOME::NAME),      \
+    NAME                            \
   )::metadata.get(), VALUE)
 
 /// Defines the mutation rates map for the current genome

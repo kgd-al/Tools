@@ -12,6 +12,8 @@ namespace utils {
 /// Manages indentation for provided ostream
 /// \author James Kanze @ https://stackoverflow.com/a/9600752
 class IndentingOStreambuf : public std::streambuf {
+  static constexpr uint DEFAULT_INDENT = 2;   ///< Default indenting value
+
   std::ostream*       _owner;   ///< Associated ostream
   std::streambuf*     _buffer;  ///< Associated buffer
   bool                _isAtStartOfLine; ///< Whether to insert indentation
@@ -31,7 +33,8 @@ protected:
 
 public:
   /// Creates a proxy buffer managing indentation level
-  explicit IndentingOStreambuf(std::ostream& dest, uint spaces = 2);
+  explicit IndentingOStreambuf(std::ostream& dest,
+                               uint spaces = DEFAULT_INDENT);
 
   /// Returns control of the buffer to its owner
   virtual ~IndentingOStreambuf(void);

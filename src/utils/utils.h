@@ -468,6 +468,27 @@ assertEqual (const T &lhs, const T &rhs, const P &predicate) {
 
 // =============================================================================
 
+/// Gobbles up variadic arguments (@see make_if)
+template <typename ...ARGS>
+void gobbleUnused (ARGS ...) {}
+
+/// Empty structure (@see make_if)
+struct __attribute__((__unused__)) Nothing {};
+
+/// Returns an object of type as produced by T(args...) IFF v is true
+/// Otherwise returns a 'Nothing' object
+template <bool v, typename T, typename ...ARGS>
+auto make_if (ARGS&&... args) {
+  if constexpr (v)
+    return T(std::forward<ARGS>(args)...);
+  else {
+    gobbleUnused(args...);
+    return Nothing{};
+  }
+}
+
+// =============================================================================
+
 /// Helper structure for accessing current time
 /// \code{cpp}
 /// std::cout << "Current time is: " << CurrentTime{} << std::endl;

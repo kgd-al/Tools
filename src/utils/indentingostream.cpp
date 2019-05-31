@@ -23,7 +23,7 @@ uint IndentingOStreambuf::indent (int di) {
   return i;
 }
 
-IndentingOStreambuf::IndentingOStreambuf(std::ostream& dest, uint spaces)
+IndentingOStreambuf::IndentingOStreambuf(std::ostream &dest, uint spaces)
   : _owner(&dest), _buffer(dest.rdbuf()),
     _isAtStartOfLine(true),
     _thisIndent(spaces), _indent(indent(_thisIndent), ' ' ) {
