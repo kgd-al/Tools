@@ -470,7 +470,7 @@ assertEqual (const T &lhs, const T &rhs, const P &predicate) {
 
 /// Gobbles up variadic arguments (@see make_if)
 template <typename ...ARGS>
-void gobbleUnused (ARGS ...) {}
+void gobbleUnused (ARGS&& ...) {}
 
 /// Empty structure (@see make_if)
 struct __attribute__((__unused__)) Nothing {};
