@@ -447,8 +447,9 @@ assertEqual (const T &lhs, const T &rhs) {
        rhsB = std::begin(rhs), rhsE = std::end(rhs);
   assertEqual(std::distance(lhsB, lhsE), std::distance(rhsB, rhsE));
 
+  uint i=0;
   for (auto lhsIt = lhsB, rhsIt = rhsB; lhsIt != lhsE; ++lhsIt, ++rhsIt)
-    assertEqual(*lhsIt, *rhsIt);
+    assertEqual(*lhsIt, *rhsIt), i++;
 }
 
 /// Asserts that two stl containers are equal after sorting

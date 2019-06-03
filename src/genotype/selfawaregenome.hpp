@@ -1159,27 +1159,27 @@ struct Aggregator<T, O,
   )::metadata.get(), VALUE)
 
 /// Defines the mutation rates map for the current genome
-#define DEFINE_GENOME_MUTATION_RATES(...) \
-  namespace config {                      \
-  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,     \
-    __SCONFIG::MR, mutationRates,         \
-    __NMSP_D::buildMap<__SGENOME>(        \
-      __SGENOME::iterator(), __VA_ARGS__  \
-    )                                     \
-  )                                       \
-  }                                       \
-                                          \
-  namespace __NMSP {                      \
-  template<>                              \
-  const EDNA<GENOME>::MutationRates       \
-    EDNA<GENOME>::_mutationRates =        \
-    std::ref(__SCONFIG::mutationRates()); \
+#define DEFINE_GENOME_MUTATION_RATES(...)   \
+  namespace config {                        \
+  DEFINE_CONTAINER_PARAMETER_FOR(__SCONFIG, \
+    __SCONFIG::MR, mutationRates,           \
+    __NMSP_D::buildMap<__SGENOME>(          \
+      __SGENOME::iterator(), __VA_ARGS__    \
+    )                                       \
+  )                                         \
+  }                                         \
+                                            \
+  namespace __NMSP {                        \
+  template<>                                \
+  const EDNA<GENOME>::MutationRates         \
+    EDNA<GENOME>::_mutationRates =          \
+    std::ref(__SCONFIG::mutationRates());   \
   }
 
 /// Defines the distance weights for the current genome
 #define DEFINE_GENOME_DISTANCE_WEIGHTS(...) \
   namespace config {                        \
-  DEFINE_MAP_PARAMETER_FOR(__SCONFIG,       \
+  DEFINE_CONTAINER_PARAMETER_FOR(__SCONFIG, \
     __SCONFIG::DW, distanceWeights,         \
     __NMSP_D::buildMap<__SGENOME>(          \
       __SGENOME::iterator(), __VA_ARGS__    \

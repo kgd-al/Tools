@@ -90,13 +90,14 @@ std::string verbosityValues (void);
 #define DEFINE_PARAMETER(TYPE, NAME, ...) \
   DEFINE_PARAMETER_FOR(CFILE, TYPE, NAME, __VA_ARGS__)
 
-/// Defines a config value for configuration file \p CFILE of map type \p TYPE
-/// named \p NAME. Variadic arguments are used to instantiate on-the-fly
-#define DEFINE_MAP_PARAMETER_FOR(CFILE, TYPE, NAME, ...) \
+/// Defines a config value for configuration file \p CFILE of container type
+/// \p TYPE named \p NAME. Variadic arguments are used to instantiate on-the-fly
+#define DEFINE_CONTAINER_PARAMETER_FOR(CFILE, TYPE, NAME, ...) \
   __DEFINE_PARAMETER_PRIVATE(CFILE, TYPE, NAME, TYPE(__VA_ARGS__))
 
-/// Defines a config value of map type \p TYPE named \p NAME. Variadic arguments are used to instantiate on-the-fly
-#define DEFINE_MAP_PARAMETER(TYPE, NAME, ...) \
+/// Defines a config value of container (map, set, vector, ...) type \p TYPE
+/// named \p NAME. Variadic arguments are used to instantiate on-the-fly
+#define DEFINE_CONTAINER_PARAMETER(TYPE, NAME, ...) \
   DEFINE_PARAMETER_FOR(CFILE, TYPE, NAME, TYPE(__VA_ARGS__))
 
 // ====================================
