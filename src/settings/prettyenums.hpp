@@ -106,7 +106,11 @@ template<typename E> struct make_index_sequence<E, 1> : iseq<E, E(0)> { };
 /// Provides reflexive information on an enumeration
 /// \tparam E a prettied-up enumeration
 template <typename E> class EnumUtils {
+public:
+  /// The underlying type of the managed enum
+  using underlying_t = typename std::underlying_type<E>::type;
 
+private:
   /// Alias for the associated metadata
   using MetaData = _details::deepmagic::EnumMetaData<E>;
 
@@ -140,11 +144,20 @@ template <typename E> class EnumUtils {
     /// The values described by \p E
     EnumValues values;
 
+    /// Alias for a set of the underlying values
+    using UnderlyingValues = std::set<underlying_t>;
+
+    /// The underlying values described by \p E
+    UnderlyingValues uvalues;
+
     /// Alias for a map type from enumeration value to name
     using EnumValueNameMap = std::map<E, std::string>;
 
     /// Maps enumeration values to their names
     EnumValueNameMap valueToName;
+
+    /// Maps enumeration values to their prettified names
+    EnumValueNameMap valueToPrettyName;
 
     /// Alias for a map type from enumeration name to value
     using EnumNameValueMap = std::map<std::string, E, CaseInsensitiveLess>;
@@ -164,12 +177,14 @@ template <typename E> class EnumUtils {
       for (const std::string &iterator: names) {
         /// Parse the enumerator
         std::vector<std::string> eqtokens = utils::split(iterator, '=');
-        std::string name = prettyEnumName(eqtokens[0]);
+        std::string name = eqtokens[0];
+        std::string pname = prettyEnumName(name);
         E value;
 
         if (eqtokens.size() == 1) { // Name only -> assign next value
           value = E(i++);
           valueToName.insert({value, name});
+          valueToPrettyName.insert({value, pname});
 
         } else { // Value provided
           std::istringstream iss (eqtokens.at(1));
@@ -179,6 +194,7 @@ template <typename E> class EnumUtils {
           if (iss) { // Value was an int -> use it
             value = E(v);
             valueToName.insert({value, name});
+            valueToPrettyName.insert({value, pname});
             i = v;
 
           } else // Value was a name -> use its value
@@ -187,8 +203,10 @@ template <typename E> class EnumUtils {
 
         // Populate the containers
         values.insert(value);
+        uvalues.insert(underlying_t(value));
         nameToValue.insert({name, value});
         nameToValue.insert({addScope(name), value});
+        nameToValue.insert({pname, value});
       }
     }
 
@@ -214,9 +232,6 @@ template <typename E> class EnumUtils {
   }
 
 public:
-  /// The underlying is currently fixed to unsigned int
-  using underlying_t = uint;
-
   /// the type of an uniform distribution that can generate valid random enumerator
   /// \see Dice::roll(ENUM)
   using dist_t = std::uniform_int_distribution<underlying_t>;
@@ -251,20 +266,21 @@ public:
 
   /// \return The name associated with the enumerator equivalent to this value, if any.
   /// \throws std::out_of_range if the enumerator does not exist
-  static const std::string& getName (uint iValue) {
-    return getName(E(iValue));
+  static const std::string& getName (uint iValue, bool pretty = true) {
+    return getName(E(iValue), pretty);
   }
 
   /// \return The name associated with this enumerator.
   /// \throws std::out_of_range if the enumerator does not exist
-  static const std::string& getName (E value) {
-    return getMaps().valueToName.at(value);
+  static const std::string& getName (E value, bool pretty = true) {
+    if (pretty) return getMaps().valueToName.at(value);
+    else        return getMaps().valueToPrettyName.at(value);
   }
 
   /// \return The scoped name (prepended with the enumeration name) associated with this enumerator.
   /// \throws std::out_of_range if the enumerator does not exist
-  static const std::string getScopedName (E value) {
-    return addScope(getName(value));
+  static std::string getScopedName (E value) {
+    return addScope(getName(value, false));
   }
 
   /// \return The enumerator associated with this name
@@ -300,6 +316,12 @@ public:
   /// \return An interator suitable for use in for-range loops
   static const auto& iterator (void) {
     return getMaps().values;
+  }
+
+  /// \return An interator suitable for for-range loops over the underlying
+  /// values
+  static const auto& iteratorUValues (void) {
+    return getMaps().uvalues;
   }
 
   /// Provides an instantiation of the type std::integer_sequence<E, E::Value1, E::Value2, ...>
