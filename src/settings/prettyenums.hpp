@@ -273,8 +273,8 @@ public:
   /// \return The name associated with this enumerator.
   /// \throws std::out_of_range if the enumerator does not exist
   static const std::string& getName (E value, bool pretty = true) {
-    if (pretty) return getMaps().valueToName.at(value);
-    else        return getMaps().valueToPrettyName.at(value);
+    if (pretty) return getMaps().valueToPrettyName.at(value);
+    else        return getMaps().valueToName.at(value);
   }
 
   /// \return The scoped name (prepended with the enumeration name) associated with this enumerator.
