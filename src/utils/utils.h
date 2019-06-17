@@ -59,7 +59,7 @@ template <typename T> bool operator< (const T& v0, const T& v1) {
 
 /// \return \p val clipped (in-place) in the [\p lower, \p upper] range
 template <typename T> T iclip(T lower, T &val, T upper) {
-  val = std::max(lower, std::min(val, upper));
+  return val = std::max(lower, std::min(val, upper));
 }
 
 /// \p val clipped (in-place) the [lower, inf] range

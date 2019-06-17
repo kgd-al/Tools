@@ -108,7 +108,7 @@ struct Extractor {
   static_assert(!std::is_same<T,T>::value,
                 "No extractor defined for this type!");
 
-  /// Extract contents of \p according to the path in \p field
+  /// Extract contents of \p value according to the path in \p field
   std::string operator() (const T &value, const std::string &field) const;
 };
 
@@ -117,7 +117,7 @@ struct Extractor {
 template <typename T>
 struct Extractor<T, typename std::enable_if<std::is_fundamental<T>::value
                                           || std::is_enum<T>::value, void>::type> {
-  /// TODO Not documented
+  /// \copydoc Extractor::operator()()
   std::string operator() (const T &value, const std::string &field) const {
     if (!field.empty())
       utils::doThrow<std::invalid_argument>(
@@ -133,7 +133,7 @@ struct Extractor<T, typename std::enable_if<std::is_fundamental<T>::value
 template <typename T>
 struct Extractor<T, typename std::enable_if<utils::is_cpp_array<T>::value
                                         || utils::is_std_vector<T>::value, void>::type> {
-  /// TODO Not documented
+  /// \copydoc Extractor::operator()()
   std::string operator() (const T &value, const std::string &field) const {
     if (field[0] == '[') {
       size_t index;
@@ -178,7 +178,7 @@ struct Aggregator {
 template <typename T, typename O>
 struct Aggregator<T, O, typename std::enable_if<std::is_fundamental<T>::value
                                              || std::is_enum<T>::value, void>::type> {
-  /// TODO Not documented
+  /// \copydoc Aggregator::operator()()
   void operator() (std::ostream &os, const std::vector<O> &objects,
                    std::function<const T& (const O&)> access,
                    uint verbosity) const {
@@ -201,7 +201,8 @@ struct Aggregator<T, O, typename std::enable_if<std::is_fundamental<T>::value
 /// Produces an aggregated array of aggregated underlying values
 template <typename T, typename O>
 struct Aggregator<T, O, typename std::enable_if<utils::is_cpp_array<T>::value, void>::type> {
-  /// TODO Not documented
+
+  /// \copydoc Aggregator::operator()()
   void operator() (std::ostream &os, const std::vector<O> &objects,
                    std::function<const T& (const O&)> access,
                    uint verbosity) const {
@@ -222,28 +223,11 @@ struct Aggregator<T, O, typename std::enable_if<utils::is_cpp_array<T>::value, v
   }
 };
 
-/// Delegates work to the aggregator for the underlying fundamental type
-//template <typename T, typename O>
-//struct Aggregator<T, O, typename std::enable_if<std::is_enum<T>::value
-//                                                && !_details::is_pretty_enum<T>::value, void>::type> {
-//  /// TODO Not documented
-//  void operator() (std::ostream &os, const std::vector<O> &objects,
-//                   std::function<const T& (const O&)> access,
-//                   uint verbosity) const {
-
-//    using underlying_t = typename std::underlying_type<T>::type;
-//    Aggregator<underlying_t, O>()(
-//      os, objects,
-//      [access] (const auto &o) -> const underlying_t& {
-//        return access(o);
-//      }, verbosity);
-//  }
-//};
-
 /// Cannot aggregate, instead list all values
 template <typename T, typename O>
 struct Aggregator<T, O, typename std::enable_if<_details::is_pretty_enum<T>::value, void>::type> {
-  /// TODO Not documented
+
+  /// \copydoc Aggregator::operator()()
   void operator() (std::ostream &os, const std::vector<O> &objects,
                    std::function<const T& (const O&)> access,
                    uint verbosity) const {
@@ -668,11 +652,6 @@ auto buildMap(const typename T::Iterator &it,
   return map;
 }
 
-/// Helper type to force linker error on undefined genome field
-/// \todo NOT WORKING
-//template <typename T1, typename T2>
-//struct Checker;
-
 /// \endcond
 } // end of namespace _details
 
@@ -1033,9 +1012,9 @@ template <typename T>
 struct Extractor<T,
     typename std::enable_if<utils::is_base_template_of<EDNA,
     T>::value, void>::type> {
-  /// TODO Not documented
-  std::string operator() (const T &object, const std::string &field) const {
 
+  /// \copydoc Extractor::operator()()
+  std::string operator() (const T &object, const std::string &field) const {
     return T::getField(object, field);
   }
 };
@@ -1045,7 +1024,7 @@ template <typename T, typename O>
 struct Aggregator<T, O,
     typename std::enable_if<utils::is_base_template_of<EDNA,
                                                        T>::value, void>::type> {
-  /// TODO Not documented
+  /// \copydoc Aggregator::operator()()
   void operator() (std::ostream &os, const std::vector<O> &objects,
                    std::function<const T& (const O&)> access,
                    uint verbosity) const {

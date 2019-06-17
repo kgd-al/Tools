@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 
-/// \todo Remove experimental when gaining access to a recent enough version of g++
+/// TODO Remove experimental when gaining access to a recent enough version of g++
 
 #include <experimental/filesystem>
 namespace stdfs = std::experimental::filesystem;
