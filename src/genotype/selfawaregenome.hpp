@@ -309,7 +309,7 @@ public:
   virtual bool check (G &genome) const = 0;
 
   /// Asserts that the fields match in both genomes
-  virtual void assertEqual (const G &lhs, const G &rhs) const = 0;
+  virtual void assertEqual (const G &lhs, const G &rhs, bool deepcopy) const = 0;
 
   /// Dumps the corresponding field's value into the provided json
   virtual void to_json (nlohmann::json &j, const G &object) const = 0;
@@ -405,9 +405,9 @@ public:
     return get(lhs) == get(rhs);
   }
 
-  void assertEqual(const O &lhs, const O &rhs) const override {
+  void assertEqual(const O &lhs, const O &rhs, bool deepcopy) const override {
     using utils::assertEqual;
-    assertEqual(get(lhs), get(rhs));
+    assertEqual(get(lhs), get(rhs), deepcopy);
   }
 
   void to_json (nlohmann::json &j, const O &object) const override {
@@ -804,8 +804,8 @@ public:
   }
 
   /// Asserts that both genomes are equal
-  friend void assertEqual (const G &lhs, const G &rhs) {
-    for (const auto &it: _iterator) get(it).assertEqual(lhs, rhs);
+  friend void assertEqual (const G &lhs, const G &rhs, bool deepcopy) {
+    for (const auto &it: _iterator) get(it).assertEqual(lhs, rhs, deepcopy);
   }
 
   /// Shorter alias to the json type
@@ -860,7 +860,7 @@ public:
 
   /// Writes this genome to \p filepath
   /// \throws std::invalid_argument if the path is not writable
-  void toFile (const std::string &filepath, int indent = -1) {
+  void toFile (const std::string &filepath, int indent = -1) const {
     stdfs::path path (filepath);
     if (path.extension() == "")
       path += extension();
@@ -869,7 +869,6 @@ public:
     if (!ofs.is_open())
       utils::doThrow<std::invalid_argument>("Unable to write to ", path);
 
-    check();
     ofs << dump(indent);
   }
 

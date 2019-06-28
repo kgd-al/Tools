@@ -143,9 +143,21 @@ protected:
     /// Create a rng using the providing \p seed
     RNG_t (Seed_t seed) : BaseRNG_t(seed), _seed(seed) {}
 
+    /// Create a copy of the provided RNG_t
+    RNG_t (const RNG_t & that) = default;
+
+    /// Default destructor
+    virtual ~RNG_t (void) = default;
+
     /// \return a new number from the underlying random number generator
     virtual result_type operator() (void) {
       return BaseRNG_t::operator ()();
+    }
+
+    /// Assign the provided RNG_t to this
+    RNG_t& operator= (RNG_t that) {
+      swap(*this, that);
+      return *this;
     }
 
     /// \return the seed used for this rng
@@ -191,6 +203,13 @@ protected:
       is.setf(baseFlags);
 
       return is;
+    }
+
+    /// Swaps the contents of two RNG_t objects
+    friend void swap (RNG_t &lhs, RNG_t &rhs) {
+      using std::swap;
+      swap(static_cast<BaseRNG_t&>(lhs), static_cast<BaseRNG_t&>(rhs));
+      swap(lhs._seed, rhs._seed);
     }
 
   private:
@@ -382,11 +401,11 @@ public:
   FastDice (Seed_t seed) : _rng(seed) {}
 
   /// Copy-build this dice based on \p other
-  FastDice (const FastDice &other) : FastDice(other.getSeed()) {}
+  FastDice (const FastDice &other) : _rng(other._rng) {}
 
   /// Copy contents of \p other into this dice
-  FastDice operator= (const FastDice &that) {
-    if (this != &that)  _rng = RNG_t(that.getSeed());
+  FastDice& operator= (FastDice that) {
+    if (this != &that)  swap(_rng, that._rng);
     return *this;
   }
 
@@ -412,8 +431,10 @@ public:
   }
 
   /// Asserts that two dices are equal (i-e will produce the same sequence)
-  friend void assertEqual (const FastDice &lhs, const FastDice &rhs) {
+  friend void assertEqual (const FastDice &lhs, const FastDice &rhs,
+                           bool deepcopy) {
     if (!(lhs == rhs))  throw std::logic_error("Dice have different states");
+    if (deepcopy && &lhs == &rhs) throw std::logic_error("Dice have same address");
   }
 };
 
