@@ -14,7 +14,7 @@ std::string verbosityValues (void) {
 
 namespace _details {
 
-// =================================================================================================
+// =============================================================================
 // Non-template config file base
 
 /// \cond internal
@@ -43,7 +43,9 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
 
 
   if (iterator.size() == 0) {
-    os << "Empty configuration file: " << name << " (either voluntarily or it is unused by this executable)\n" << std::endl;
+    os << "Empty configuration file: " << name
+       << " (either voluntarily or it is unused by this executable)\n"
+       << std::endl;
     return;
   }
 
@@ -64,10 +66,14 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
   size_t prefixSize = toFile ? 0 : (*iterator.begin()).second.prefix().length();
   const std::string title = std::string(" ") + name + std::string(" ");
   size_t halfTitleSize = (title.length()-1)/2;
-  if (prefixSize + maxNameWidth <= halfTitleSize) maxNameWidth = halfTitleSize - prefixSize + 1;
+  if (prefixSize + maxNameWidth <= halfTitleSize)
+    maxNameWidth = halfTitleSize - prefixSize + 1;
 
-  const std::string titlePrefix = std::string(prefixSize + maxNameWidth - (title.length()-1)/2, '=');
-  const std::string fullHeader = std::string(2 * titlePrefix.length() + title.length(), '=');
+  const std::string titlePrefix =
+      std::string(prefixSize + maxNameWidth - (title.length()-1)/2, '=');
+
+  const std::string fullHeader =
+      std::string(2 * titlePrefix.length() + title.length(), '=');
 
   os << fullHeader << "\n"
      << titlePrefix << title << titlePrefix << "\n";
@@ -119,7 +125,8 @@ AbstractConfigFile::read(ConfigIterator &it,
   std::regex regSeparator = std::regex ("=+");
   std::regex regConfigFileName = std::regex("=+ ([[:alnum:]]+) =+");
   std::regex regDataRow = std::regex(" *([[:alnum:]_]+): ?(.+)");
-  std::regex regMapField = std::regex("map\\([[:alnum:]_:<,> ]+, [[:alnum:]_:<> ]+\\) \\{");
+  std::regex regMapField =
+      std::regex("map\\([[:alnum:]_:<,> ]+, [[:alnum:]_:<> ]+\\) \\{");
 
   // Storage space for matches in regexp
   std::smatch matches;
@@ -168,7 +175,8 @@ AbstractConfigFile::read(ConfigIterator &it,
         state = END;
 
       } else {
-        if (std::regex_match (line, matches, regDataRow) && matches.size() == 3) {
+        if (std::regex_match (line, matches, regDataRow)
+            && matches.size() == 3) {
           std::string field = matches[1];
           std::string value = matches[2];
 
@@ -242,12 +250,18 @@ void AbstractConfigFile::deserialize (ConfigIterator &iterator,
                                       stdfs::path &path,
                                       const nlohmann::json &j) {
   path = j["path"].get<stdfs::path>();
-  for (auto &p: iterator)
-    p.second.fromJson(j[p.first]);
+  for (auto &p: iterator) {
+    auto it = j.find(p.first);
+    if (it != j.end())
+      p.second.fromJson(*it);
+    else
+      std::cerr << "Unable to find field " << p.first << " in config file "
+                << path << std::endl;
+  }
 }
 
 
-// =================================================================================================
+// =============================================================================
 // Non-template config value base
 
 AbstractConfigFile::IConfigValue::IConfigValue (

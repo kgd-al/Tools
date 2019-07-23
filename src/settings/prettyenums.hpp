@@ -293,7 +293,7 @@ public:
     } catch (std::out_of_range&) {
       std::ostringstream oss;
       oss << "'" << name << "' is not a valid enumerator for '"
-          << EnumUtils::name();
+          << EnumUtils::name() << "'";
       throw std::out_of_range(oss.str());
     }
   }
