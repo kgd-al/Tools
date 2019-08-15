@@ -1,4 +1,5 @@
 #include <fstream>
+#include <functional>
 
 #include "configfile.h"
 
@@ -88,28 +89,37 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
 
   os << fullHeader << "\n\n";
 
+  using SortedIterator = std::vector<std::reference_wrapper<IConfigValue>>;
+
   /// Print values (and if a config file is found store it for later)
-  ConfigIterator subconfigFiles;
-  for (auto &p: iterator) {
-    if (p.second.isConfigFile()) {
+  SortedIterator sortedIterator;
+  for (auto &p: iterator) sortedIterator.push_back(std::ref(p.second));
+  std::sort(sortedIterator.begin(), sortedIterator.end(),
+            [] (const IConfigValue &lhs, const IConfigValue &rhs) {
+    return lhs.index() < rhs.index();
+  });
+
+  SortedIterator subconfigFiles;
+  for (IConfigValue &v: sortedIterator) {
+    if (v.isConfigFile()) {
       if (toFile) {
-        dynamic_cast<TSubconfigFile&>(p.second).printConfig(thisDir);
+        dynamic_cast<TSubconfigFile&>(v).printConfig(thisDir);
 
       } else
-        subconfigFiles.insert(p);
+        subconfigFiles.push_back(v);
     }
 
-    if (!toFile)  os << p.second.prefix();
-    os << std::string(maxNameWidth - p.first.length(), ' ')
-       << p.first << ": " << p.second << "\n";
+    if (!toFile)  os << v.prefix();
+    os << std::string(maxNameWidth - v.name().length(), ' ')
+       << v.name() << ": " << v << "\n";
   }
 
   os << "\n" << fullHeader << std::endl;
 
   /// If not printing to file, subconfig files are printed afterwards
-  for (auto &p: subconfigFiles) {
+  for (IConfigValue &v: subconfigFiles) {
     os << "\n";
-    dynamic_cast<TSubconfigFile&>(p.second).printConfig(os);
+    dynamic_cast<TSubconfigFile&>(v).printConfig(os);
   }
 }
 
@@ -265,12 +275,11 @@ void AbstractConfigFile::deserialize (ConfigIterator &iterator,
 // Non-template config value base
 
 AbstractConfigFile::IConfigValue::IConfigValue (
-    AbstractConfigFile::ConfigIterator &registrationDeck, const char *name,
-    Origin origin)
-  : _origin(origin), _name(name) {
+    const BuildData &bd, Origin origin)
+  : _origin(origin), _name(bd.name), _index(bd.index) {
 
   // Register into ConfigFile container
-  registrationDeck.insert({_name, *this});
+  bd.registrationDeck.insert({_name, *this});
 }
 
 bool AbstractConfigFile::IConfigValue::input (const std::string &s, Origin o) {

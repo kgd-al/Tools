@@ -64,9 +64,17 @@ std::string verbosityValues (void);
 #define __DECLARE_PARAMETER_PRIVATE(TYPE, NAME) \
   static ConfigValue<TYPE> NAME;
 
+/// Collects the required data for creation of a config value named \p NAME
+#define __BUILD_DATA(NAME) \
+  IConfigValue::BuildData { \
+    config_iterator(), \
+    #NAME, \
+    nextIndex(), \
+  }
+
 /// Evaluates to the definition of a config value of requested \p TYPE and \p NAME
-#define __DEFINE_PARAMETER_PRIVATE(CFILE, TYPE, NAME, ...) \
-  CFILE::ConfigValue<TYPE> CFILE::NAME (config_iterator(), #NAME, __VA_ARGS__);
+#define __DEFINE_PARAMETER_PRIVATE(CFILE, TYPE, NAME, ...)        \
+  CFILE::ConfigValue<TYPE> CFILE::NAME (__BUILD_DATA(NAME), __VA_ARGS__);
 
 /// @endcond
 
@@ -109,8 +117,8 @@ std::string verbosityValues (void);
 
 /// Defines a constant config value with given \p TYPE and \p NAME build from
 /// the variadic arguments
-#define DEFINE_CONST_PARAMETER(TYPE, NAME, ...) \
-  CFILE::ConstConfigValue<TYPE> CFILE::NAME (config_iterator(), #NAME, __VA_ARGS__);
+#define DEFINE_CONST_PARAMETER(TYPE, NAME, ...)                         \
+  CFILE::ConstConfigValue<TYPE> CFILE::NAME (__BUILD_DATA(NAME), __VA_ARGS__);
 
 
 // ====================================
@@ -142,7 +150,7 @@ std::string verbosityValues (void);
 
 /// Defines the dependency for another config file named \p NAME of type \p TYPE
 #define DEFINE_SUBCONFIG(TYPE, NAME) \
-  CFILE::SubconfigFile<TYPE> CFILE::NAME (config_iterator(), #NAME);
+  CFILE::SubconfigFile<TYPE> CFILE::NAME (__BUILD_DATA(NAME));
 
 
 // =============================================================================
@@ -195,13 +203,24 @@ protected:
     /// Name of the config value (i-e field name in the parent config file)
     std::string _name;
 
+    /// Index of the config value in its file
+    uint _index;
+
+    /// Optional comment
+    std::string _comment;
+
     /// If the environment contains a value from this field, use it
     void checkEnv (const char *name);
 
   public:
+    struct BuildData {
+      ConfigIterator &registrationDeck;
+      const char *name;
+      uint index;
+    };
+
     /// Build a config value named \p name and register it
-    IConfigValue (ConfigIterator &registrationDeck, const char *name,
-                  Origin origin = DEFAULT);
+    IConfigValue (const BuildData &bd, Origin origin = DEFAULT);
 
     /// Provides a common interface. See ConfigValue::output and TSubconfigFile::output.
     virtual std::ostream& output (std::ostream &os) const = 0;
@@ -220,6 +239,11 @@ protected:
     /// \returns the name (key) of this config value
     const std::string& name (void) const {
       return _name;
+    }
+
+    /// \returns the position of this config value in its corresponding file
+    uint index (void) const {
+      return _index;
     }
 
     /// For discrimination between value-based and subconfig-based fields
@@ -243,9 +267,9 @@ protected:
 
     /// Build a config value named \p name from arguments \p args and register it
     template <typename... ARGS>
-    ConfigValue(ConfigIterator &registrationDeck, const char *name, ARGS&&... args)
-      : IConfigValue(registrationDeck, name), _value(std::forward<ARGS>(args)...) {
-      checkEnv(name); // Need to have it here for dynamic dispatch
+    ConfigValue(const BuildData &bd, ARGS&&... args)
+      : IConfigValue(bd), _value(std::forward<ARGS>(args)...) {
+      checkEnv(bd.name); // Need to have it here for dynamic dispatch
     }
 
     /// Return a const reference to the underlying value
@@ -320,10 +344,8 @@ protected:
 
     /// Builds a compile-constant value for type T
     template <typename... ARGS>
-    ConstConfigValue (ConfigIterator &registrationDeck, const char *name,
-                      ARGS&&... args)
-      : IConfigValue(registrationDeck, name, CONSTANT),
-        _value(std::forward<ARGS>(args)...) {}
+    ConstConfigValue (const BuildData &bd, ARGS&&... args)
+      : IConfigValue(bd, CONSTANT), _value(std::forward<ARGS>(args)...) {}
 
     /// Access the compile-constant value stored by this item
     const T& operator() (void) const {  return _value;  }
@@ -379,8 +401,7 @@ protected:
   struct TSubconfigFile : public IConfigValue {
 
     /// Build and register a config file named \p name
-    TSubconfigFile (ConfigIterator &registrationDeck, const char *name)
-      : IConfigValue(registrationDeck, name) {}
+    TSubconfigFile (const BuildData &bd) : IConfigValue(bd) {}
 
     virtual ~TSubconfigFile(void) = default;
 
@@ -402,9 +423,8 @@ protected:
   struct SubconfigFile : public TSubconfigFile {
 
     /// Build and register this as a reference to subconfig file of type \p C
-    SubconfigFile(ConfigIterator &registrationDeck, const char *name)
-      : TSubconfigFile(registrationDeck, name) {
-      checkEnv(name); // Need to have it here for dynamic dispatch
+    SubconfigFile(const BuildData &bd) : TSubconfigFile(bd) {
+      checkEnv(bd.name); // Need to have it here for dynamic dispatch
     }
 
   private:
@@ -534,6 +554,12 @@ protected:
 
   /// Current filename for this ConfigFile
   static stdfs::path _path;
+
+  /// \returns next index value
+  static uint nextIndex (void) {
+    static uint index = 0;
+    return index++;
+  }
 
   /// Provides access to the underlying container
   static ConfigIterator& config_iterator (void) {

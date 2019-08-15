@@ -250,11 +250,18 @@ struct EDNA_CONFIG_FILE(External) {
   using A = std::array<float,2>;
 
   DECLARE_PARAMETER(B<int>, intFieldBounds)
+
   DECLARE_PARAMETER(B<A>, arrayFieldBounds)
   DECLARE_PARAMETER(B<genotype::Enum>, enumFieldBounds)
 
   DECLARE_PARAMETER(MR, mutationRates)
   DECLARE_PARAMETER(DW, distanceWeights)
+
+  using IT = genotype::InternalTrivial::config_t;
+  DECLARE_SUBCONFIG(IT, internalTrivialConfig)
+
+  using IC = genotype::InternalComplex::config_t;
+  DECLARE_SUBCONFIG(IC, internalComplexConfig)
 };
 } // end of namespace config
 // end of genomeconfig.h
@@ -263,6 +270,12 @@ struct EDNA_CONFIG_FILE(External) {
 // genome.cpp
 #define GENOME External
 DEFINE_GENOME_FIELD_WITH_BOUNDS(int, intField, "", 1, 2, 3, 4)
+
+using Config = config::EDNAConfigFile<genotype::External>;
+#define CFILE Config
+DEFINE_SUBCONFIG(Config::IT, internalTrivialConfig)
+DEFINE_SUBCONFIG(Config::IC, internalComplexConfig)
+#undef CFILE
 
 using V = std::vector<genotype::InternalTrivial>;
 static const auto vectorFunctor = [] {
@@ -374,26 +387,28 @@ void showcase (F1 setter, F2 getter) {
 }
 
 int main (void) {
+  genotype::External::config_t::setupConfig("", config::SHOW);
+
 //  showcase<genotype::InternalTrivial>([] (auto&) {}, [] (auto&) {});
 
 //  showcase<genotype::InternalComplex>([] (auto &g) {
 //    g.stringField = "tOt!";
 //  }, [] (auto&) {});
 
-  showcase<genotype::External>([] (auto &g) {
-    rng::FastDice dice (1);
-    g.intField = 42;
-    g.arrayField = {4,2};
-    g.recField = genotype::InternalComplex::random(dice);
-    g.vectorField = {
-      genotype::InternalTrivial::random(dice),
-      genotype::InternalTrivial::random(dice)
-    };
-  }, [] (auto &g) {
-    std::string field1 = "enumField", field2 = "vectorField[1].floatField";
-    std::cerr << field1 << ": " << g.getField(field1) << "\n"
-              << field2 << ": " << g.getField(field2) << std::endl;
-  });
+//  showcase<genotype::External>([] (auto &g) {
+//    rng::FastDice dice (1);
+//    g.intField = 42;
+//    g.arrayField = {4,2};
+//    g.recField = genotype::InternalComplex::random(dice);
+//    g.vectorField = {
+//      genotype::InternalTrivial::random(dice),
+//      genotype::InternalTrivial::random(dice)
+//    };
+//  }, [] (auto &g) {
+//    std::string field1 = "enumField", field2 = "vectorField[1].floatField";
+//    std::cerr << field1 << ": " << g.getField(field1) << "\n"
+//              << field2 << ": " << g.getField(field2) << std::endl;
+//  });
 
   return 0;
 }
