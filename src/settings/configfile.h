@@ -213,9 +213,15 @@ protected:
     void checkEnv (const char *name);
 
   public:
+    /// Contains the necessary information for registering a config value
     struct BuildData {
+      /// The iterator in which to store the encapsulating data
       ConfigIterator &registrationDeck;
+
+      /// The name of the config value
       const char *name;
+
+      /// The position of the config value in its file
       uint index;
     };
 

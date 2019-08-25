@@ -155,6 +155,15 @@ static const auto stringFunctor = [] {
 
   return functor;
 };
+template <>
+struct genotype::MutationRatesPrinter<std::string,
+                                      genotype::InternalComplex,
+                                      &genotype::InternalComplex::stringField> {
+  static constexpr bool recursive = false;
+  static void print (std::ostream &os, uint width, uint depth, float ratio) {
+    prettyPrintMutationRate(os, width, depth, ratio, 1, "#stringField", false);
+  }
+};
 DEFINE_GENOME_FIELD_WITH_FUNCTOR(std::string, stringField, "sf", stringFunctor())
 
 DEFINE_GENOME_MUTATION_RATES({
@@ -231,7 +240,6 @@ struct Aggregator<decltype(External::vectorField), External> {
     os << "]\n";
   }
 };
-
 DECLARE_GENOME_FIELD(External, int, intField)
 DECLARE_GENOME_FIELD(External, std::vector<InternalTrivial>, vectorField)
 DECLARE_GENOME_FIELD(External, InternalComplex, recField)
@@ -301,6 +309,13 @@ static const auto vectorFunctor = [] {
   functor.check = [] (auto &) { return true; };
   return functor;
 };
+template <>
+struct genotype::MutationRatesPrinter<V, genotype::External, &genotype::External::vectorField> {
+  static constexpr bool recursive = true;
+  static void print (std::ostream &os, uint width, uint depth, float ratio) {
+    genotype::InternalTrivial::printMutationRates(os, width, depth, ratio);
+  }
+};
 DEFINE_GENOME_FIELD_WITH_FUNCTOR(V, vectorField, "vf", vectorFunctor())
 DEFINE_GENOME_FIELD_AS_SUBGENOME(genotype::InternalComplex, recField, "rf")
 
@@ -346,6 +361,8 @@ void showcase (F1 setter, F2 getter) {
   std::cout << "\nModified g0:" << g0 << std::endl;
   std::cout << "\nis g0 valid? " << g0.check() << std::endl;
 
+  GENOME::printMutationRates(std::cout, 2);
+
   rng::FastDice dice;
   GENOME g1 = GENOME::random(dice);
   std::cout << "\nRandom g1:" << g1 << std::endl;
@@ -387,7 +404,9 @@ void showcase (F1 setter, F2 getter) {
 }
 
 int main (void) {
-  genotype::External::config_t::setupConfig("", config::SHOW);
+  genotype::InternalTrivial::printMutationRates(std::cout, 2);
+  genotype::InternalComplex::printMutationRates(std::cout, 2);
+  genotype::External::printMutationRates(std::cout, 2);
 
 //  showcase<genotype::InternalTrivial>([] (auto&) {}, [] (auto&) {});
 

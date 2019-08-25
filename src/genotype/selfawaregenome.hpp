@@ -99,6 +99,22 @@ template <typename G> struct EDNAConfigFile;
 
 namespace genotype {
 
+/// Base template for printing mutation rates in functor-managed fields
+/// \see prettyPrintMutationRate for a unified printing facility
+template <typename T, typename G, T G::*O> struct MutationRatesPrinter;
+
+/// Provides a common interface for pretty printing a single mutation rate
+inline void prettyPrintMutationRate (std::ostream &os,
+                                     uint width, uint depth, float ratio,
+                                     float r, const std::string &name,
+                                     bool recursive) {
+  if (recursive)
+        os << std::setw(width) << "";
+  else  os << std::setw(width) << 100 * ratio * r;
+
+  os << " " << std::string(2*depth, ' ') << name << "\n";
+}
+
 // =============================================================================
 // == Field extraction
 
@@ -286,6 +302,12 @@ public:
     return _alias;
   }
 
+  /// \returns Whether this fields contains subfields
+  virtual bool isRecursive (void) const = 0;
+
+  /// \returns Whether the managed field is functor-managed
+  virtual bool isFunctorManaged (void) const = 0;
+
   /// \returns Whether the managed field is also a self-aware genome
   virtual bool isSubgenomeField (void) const = 0;
 
@@ -327,6 +349,11 @@ public:
   /// provided genomes into a synthetic description
   virtual void aggregate (std::ostream &os, const std::vector<G> &objects,
                           uint verbosity) const = 0;
+
+  /// \see EDNA::printMutationRates
+  virtual void printMutationRates (std::ostream &os, uint, uint, float) const {
+    os << __PRETTY_FUNCTION__ << ": no-op\n";
+  }
 };
 
 /// Helper type storing the various types used by the self aware genomes
@@ -376,6 +403,14 @@ public:
   }
 
   virtual ~GenomeField (void) = default;
+
+  bool isRecursive(void) const override {
+    return false;
+  }
+
+  bool isFunctorManaged(void) const override {
+    return false;
+  }
 
   bool isSubgenomeField(void) const override {
     return false;
@@ -540,6 +575,14 @@ public:
            && _functor.distance && _functor.check);
   }
 
+  bool isRecursive(void) const override {
+    return MutationRatesPrinter<T,O,OFFSET>::recursive;
+  }
+
+  bool isFunctorManaged(void) const override {
+    return true;
+  }
+
   void random (O &object, Dice &dice) const override {
     get(object) = _functor.random(dice);
   }
@@ -554,6 +597,11 @@ public:
 
   void cross (const O &lhs, const O &rhs, O &res, Dice &d) const override {
     get(res) = _functor.cross(get(lhs), get(rhs), d);
+  }
+
+  void printMutationRates(std::ostream &os, uint width, uint depth,
+                          float ratio) const override {
+    MutationRatesPrinter<T,O,OFFSET>::print(os, width, depth, ratio);
   }
 
 private:
@@ -617,7 +665,9 @@ public:
 /// \throws std::invalid_argument if a field is missing its mutation rate
 template <typename G, typename T = EDNA_type_traits<G>>
 auto buildMap(const typename T::Iterator &it,
-              std::initializer_list<std::pair<const typename T::value_t*,float>> &&l) {
+              std::initializer_list<
+                std::pair<const typename T::value_t*,float>> &&l,
+              bool normalize) {
 
   std::ostringstream oss;
   oss << "Checking " << utils::className<G>() << ":\n";
@@ -643,12 +693,12 @@ auto buildMap(const typename T::Iterator &it,
     oss << "\tNo mutation rate defined for field " << n << "\n", ok = false;
 
   // Bail-out if errors were encountered
-  if (!ok)
-    throw std::invalid_argument(oss.str());
+  if (!ok)  throw std::invalid_argument(oss.str());
 
   // Otherwise everything's good we can build the map
   std::map<std::string, float> map;
   for (auto &p: l)  map[p.first->name()] = p.second;
+  if (normalize)  utils::normalize(map);
   return map;
 }
 
@@ -895,6 +945,33 @@ public:
     }
   }
 
+  /// Pretty prints the mutation rates for all the fields contained (directly or
+  /// indirectly) by this genome
+  static void printMutationRates (std::ostream &os, uint precision) {
+    std::ostringstream oss;
+    oss << std::setprecision(precision) << std::fixed;
+    uint width = precision + 3;
+    printMutationRates(oss, width, 0, 1);
+
+    os << "Mutation rates for " << utils::className<G>()
+       << ":\n" << oss.str() << std::endl;
+  }
+
+  /// Private worker that performs the printing of the mutation rates
+  /// \param os Where to print the rates
+  /// \param width The width of the rate (for std::setw)
+  /// \param depth The amount of horizontal indenting needed
+  /// \param ratio The cumulative probability of this genome
+  static void printMutationRates (std::ostream &os, uint width, uint depth,
+                                  float ratio) {
+
+    for (const auto &mr: _mutationRates.get()) {
+      const auto &fm = _iterator.at(mr.first).get();
+      bool r = fm.isRecursive();
+      prettyPrintMutationRate(os, width, depth, ratio, mr.second, mr.first, r);
+      if (r) fm.printMutationRates(os, width, depth+1, ratio * mr.second);
+    }
+  }
 
 // =============================================================================
 // == Operators
@@ -1117,7 +1194,17 @@ struct Aggregator<T, O,
 /// Defines the genomic field \p NAME with type \p TYPE as a subgenome forwarding
 /// its functions to the functor constructor
 #define DEFINE_GENOME_FIELD_AS_SUBGENOME(TYPE, NAME, ALIAS) \
-  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldForSubgenome, TYPE, NAME, ALIAS, 0)
+  template <> \
+  struct genotype::MutationRatesPrinter<TYPE, __SGENOME,    \
+                                        &__SGENOME::NAME> { \
+    static constexpr bool recursive = true;                 \
+    static void print (std::ostream &os, uint width,        \
+                       uint depth, float ratio) {           \
+      TYPE::printMutationRates(os, width, depth, ratio);    \
+    }                                                       \
+  };                                                        \
+  __DEFINE_GENOME_FIELD_PRIVATE(GenomeFieldForSubgenome,    \
+                                TYPE, NAME, ALIAS, 0)       \
 
 /// Helper alias to the type of a functor object for a specific, auto-managed,
 /// field
@@ -1142,7 +1229,8 @@ struct Aggregator<T, O,
   DEFINE_CONTAINER_PARAMETER_FOR(__SCONFIG, \
     __SCONFIG::MR, mutationRates,           \
     __NMSP_D::buildMap<__SGENOME>(          \
-      __SGENOME::iterator(), __VA_ARGS__    \
+      __SGENOME::iterator(), __VA_ARGS__,   \
+      true                                  \
     )                                       \
   )                                         \
   }                                         \
@@ -1160,7 +1248,8 @@ struct Aggregator<T, O,
   DEFINE_CONTAINER_PARAMETER_FOR(__SCONFIG, \
     __SCONFIG::DW, distanceWeights,         \
     __NMSP_D::buildMap<__SGENOME>(          \
-      __SGENOME::iterator(), __VA_ARGS__    \
+      __SGENOME::iterator(), __VA_ARGS__,   \
+      false                                 \
     )                                       \
   )                                         \
   }                                         \

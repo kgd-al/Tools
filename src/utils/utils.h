@@ -337,6 +337,29 @@ VAL take (std::map<KEY, VAL> &map, KEY key) {
   return val;
 }
 
+/// Normalizes the provided value-rate map
+template <typename T>
+void normalize (std::map<T, float> &m) {
+  float sum = 0;
+  for (const auto &p: m)  sum += p.second;
+  for (auto &p: m)  p.second /= sum;
+}
+
+/// Generates a normalized value-rate map from the provided initializer list
+template <typename T>
+std::map<T, float> normalize(std::initializer_list<std::pair<const T,
+                                                             float>> l) {
+  std::map<T, float> m (l);
+  normalize(m);
+  return m;
+}
+
+/// Generates a normalized name-rate map from the provided initializer list
+inline std::map<std::string, float>
+normalizeRates (std::initializer_list<std::pair<const std::string, float>> l) {
+  return normalize<std::string>(l);
+}
+
 /// \return a copy of \p str without leading and trailing spaces
 std::string trimLeading (std::string str, const std::string &whitespaces=" \t");
 
