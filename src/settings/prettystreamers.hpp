@@ -162,7 +162,8 @@ struct PrettyReader<std::set<V,C>> {
     PrettyReader<V> reader;
     V value;
 
-    while (reader(is, value))   set.insert(value);
+    set.clear();
+    while (is.peek() != EOF && reader(is, value))   set.insert(value);
 
     if (is.eof() && is.fail())  is.clear();
     return (bool)is;

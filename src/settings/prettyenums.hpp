@@ -360,7 +360,8 @@ std::istream& operator>> (std::istream &is, E& e) {
 
   if (!ok) {
     std::ostringstream oss;
-    oss << "Unable to transform " + val + " into enum value of type " + EnumUtils<E>::name();
+    oss << "Unable to transform '" << val << "' into enum value of type "
+        << EnumUtils<E>::name();
     throw std::out_of_range(oss.str());
   }
 
@@ -380,6 +381,11 @@ std::istream& operator>> (std::istream &is, E& e) {
 /// Define a pretty enumeration residing in namespace \p NAMESPACE
 #define DEFINE_NAMESPACE_PRETTY_ENUMERATION(NAMESPACE, NAME, ...)     \
   namespace NAMESPACE { __PRETTY_ENUM_DECLARE(, NAME, __VA_ARGS__) }  \
+  __PRETTY_ENUM_METADATA(NAMESPACE, NAME, __VA_ARGS__)
+
+/// Define a pretty enumeration residing in namespace \p NAMESPACE::NAME
+#define DEFINE_NAMESPACE_SCOPED_PRETTY_ENUMERATION(NAMESPACE, NAME, ...)     \
+  namespace NAMESPACE { __PRETTY_ENUM_DECLARE(class, NAME, __VA_ARGS__) }  \
   __PRETTY_ENUM_METADATA(NAMESPACE, NAME, __VA_ARGS__)
 
 
