@@ -53,6 +53,8 @@ set(SOURCES
     "src/settings/prettyenums.hpp"
     "src/settings/prettystreamers.hpp"
 
+    "src/utils/proc.h"
+    "src/utils/proc.cpp"
     "src/utils/utils.h"
     "src/utils/utils.cpp"
     "src/utils/shell.hpp"

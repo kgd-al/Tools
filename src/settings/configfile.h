@@ -584,6 +584,11 @@ protected:
   }
 
 public:
+  /// \returns the current path (if any) of the file whose values are used
+  static const stdfs::path path (void) {
+    return _path;
+  }
+
   /// Return the name of this ConfigFile's actual type (the template argument)
   static const std::string& name (void) {
     static const std::string _localName = utils::innermostTemplateArgument<F>();
