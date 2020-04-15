@@ -243,7 +243,7 @@ public:
   static constexpr underlying_t minU (void) { return underlying_t(min()); }
 
   /// \return The largest enumerator
-  static constexpr E max (void) { return getMaps().values().back(); }
+  static constexpr E max (void) { return getMaps().values.back(); }
 
   /// \return The underlying value of the largest enumerator
   static constexpr underlying_t maxU (void) { return underlying_t(max()); }

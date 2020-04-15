@@ -321,8 +321,8 @@ public:
   /// described in its values
   /// \tparam T a copyable type
   /// \attention The map shall NOT be empty
-  template <typename T>
-  T pickOne (const std::map<T, float> &map) {
+  template <typename T, typename ...Ts>
+  T pickOne (const std::map<T, float, Ts...> &map) {
     std::vector<T> keys;
     std::vector<float> values;
 
