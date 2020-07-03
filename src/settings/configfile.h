@@ -9,10 +9,11 @@
 
 #ifdef EXPERIMENTAL_STD_FILESYSTEM
 #include <experimental/filesystem>
+namespace stdfs = std::experimental::filesystem;
 #else
 #include <filesystem>
+namespace stdfs = std::filesystem;
 #endif
-namespace stdfs = std::experimental::filesystem;
 
 #include "../external/json.hpp"
 
