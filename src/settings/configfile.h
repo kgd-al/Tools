@@ -7,8 +7,13 @@
 
 /// TODO Remove experimental when gaining access to a recent enough version of g++
 
+#ifdef EXPERIMENTAL_STD_FILESYSTEM
 #include <experimental/filesystem>
 namespace stdfs = std::experimental::filesystem;
+#else
+#include <filesystem>
+namespace stdfs = std;
+#endif
 
 #include "../external/json.hpp"
 
