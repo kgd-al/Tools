@@ -57,6 +57,7 @@ set(SOURCES
     "src/utils/proc.cpp"
     "src/utils/utils.h"
     "src/utils/utils.cpp"
+    "src/utils/assertequal.hpp"
     "src/utils/shell.hpp"
     "src/utils/functions.h"
     "src/utils/functions.cpp"

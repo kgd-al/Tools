@@ -11,6 +11,7 @@
 #include <atomic>
 
 #include "../utils/utils.h"
+#include "../utils/assertequal.hpp"
 #include "../utils/indentingostream.h"
 #include "../external/json.hpp"
 #include "../settings/configfile.h"

@@ -120,7 +120,7 @@ class AbstractDice {
 public:
 
   /// The type used as a seed
-  using Seed_t = unsigned long;
+  using Seed_t = unsigned int;
 
   /// The underlying random number generator
   using BaseRNG_t = std::mt19937;
