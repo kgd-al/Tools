@@ -27,6 +27,20 @@
  * Most of this file is not intended for the end-user.
  */
 
+namespace utils {
+
+template <typename T>
+void from_json (const nlohmann::json &j, GenomeID<T> &gid) {
+  gid.id = typename GenomeID<T>::ID(j.get<typename GenomeID<T>::ut>());
+}
+
+template <typename T>
+void to_json (nlohmann::json &j, const GenomeID<T> &gid) {
+  j = typename GenomeID<T>::ut(gid.id);
+}
+
+}
+
 namespace config {
 
 /// Store global variables for all self-aware genome configuration files

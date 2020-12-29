@@ -112,6 +112,13 @@ assertEqual (const T &lhs, const T &rhs, const P &predicate, bool deepcopy) {
   assertEqual(lhsSorted, rhsSorted, deepcopy);
 }
 
+template <typename T>
+void assertEqual (const GenomeID<T> &lhs, const GenomeID<T> &rhs,
+                  bool deepcopy) {
+  using ut = typename GenomeID<T>::ut;
+  utils::assertEqual((ut)lhs.id, (ut)rhs.id, deepcopy);
+}
+
 } // end of namespace utils
 
 #endif // KGD_ASSERTEQUAL_H

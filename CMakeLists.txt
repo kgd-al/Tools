@@ -155,10 +155,12 @@ install(
         PERMISSIONS
             OWNER_EXECUTE OWNER_READ
             GROUP_EXECUTE GROUP_READ
+                          WORLD_READ
         PATTERN "*.hpp"
         PERMISSIONS
             OWNER_EXECUTE OWNER_READ
             GROUP_EXECUTE GROUP_READ
+                          WORLD_READ
         PATTERN "*/external/*" EXCLUDE
 )
 

@@ -281,8 +281,8 @@ std::ostream& operator<< (std::ostream &os, const std::vector<T> &vec) {
 }
 
 /// Stream values from a std::set<...>
-template <typename T>
-std::ostream& operator<< (std::ostream &os, const std::set<T> &s) {
+template <typename T, typename C>
+std::ostream& operator<< (std::ostream &os, const std::set<T, C> &s) {
   os << "[ ";
   for (auto &v: s) os << v << " ";
   return os << "]";
@@ -450,6 +450,48 @@ struct CurrentTime {
   /// Insert the object into stream \p os
   friend std::ostream& operator<< (std::ostream &os, const CurrentTime &ct);
 };
+
+// =============================================================================
+// Cleaner management of IDs
+
+template <typename T>
+struct GenomeID {
+  using ut = uint;
+  enum class ID : ut { INVALID = 0 };
+  ID id;
+
+  GenomeID (void) : id(next(ID::INVALID)) {}
+  explicit GenomeID (ut value) {
+    id = next(ID(value));
+  }
+
+  constexpr operator ID (void) const {
+    return id;
+  }
+
+  static constexpr GenomeID next (GenomeID &gid) {
+    GenomeID current = gid;
+    gid.id = next(gid.id);
+    return current;
+  }
+
+private:
+  static constexpr ID next (ID id) {  return ID(ut(id)+1);  }
+};
+
+template <typename T>
+std::ostream& operator<< (std::ostream &os, const GenomeID<T> &gid) {
+  return os << typename GenomeID<T>::ut(gid.id);
+}
+
+template <typename T>
+bool operator< (const GenomeID<T> &lhs, const GenomeID<T> &rhs) {
+  return lhs.id < rhs.id;
+}
+
+#define HAS_GENOME_ID(C) \
+  using ID = utils::GenomeID<C>; \
+  ID id;
 
 // =============================================================================
 

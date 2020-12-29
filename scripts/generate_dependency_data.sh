@@ -13,8 +13,8 @@ commitMessage=$(git log --format='%B' -n 1 $commitHasH)
 commitDate="$(git log --format='%cD' -n 1 $commitHasH) ($(git log --format='%cr' -n 1 $commitHasH))"
 
 out=$1
-echo "commitHash: $commitHash" > $out
-echo "commitMsg: $commitMessage" >> $out
-echo "commitDate: $commitDate" >> $out
-[ "$2" = "$name" ] && echo "buildDate: $buildDate" >> $out
-[ "$3" = "-" ] || echo "buildType: $3" >> $out
+echo "commitHash: $commitHash" > "$out"
+echo "commitMsg: $commitMessage" >> "$out"
+echo "commitDate: $commitDate" >> "$out"
+[ "$2" = "$name" ] && echo "buildDate: $buildDate" >> "$out"
+[ "$3" = "-" ] || echo "buildType: $3" >> "$out"
