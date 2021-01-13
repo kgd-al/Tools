@@ -1,5 +1,5 @@
-#ifndef _CONFIG_FILE_H_
-#define _CONFIG_FILE_H_
+#ifndef KGD_UTILS_CONFIG_FILE_H
+#define KGD_UTILS_CONFIG_FILE_H
 
 #include <regex>
 #include <iostream>
@@ -699,4 +699,4 @@ template <typename T> stdfs::path ConfigFile<T>::_path;
 
 } // end of namespace config
 
-#endif // _CONFIG_FILE_H_
+#endif // KGD_UTILS_CONFIG_FILE_H

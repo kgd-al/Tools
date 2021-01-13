@@ -1,5 +1,5 @@
-#ifndef PROC_H
-#define PROC_H
+#ifndef KGD_UTILS_PROC_H
+#define KGD_UTILS_PROC_H
 
 #include <unistd.h>
 
@@ -390,4 +390,4 @@ void assert_lighter_than (long size_limit);
 
 } // end of namespace proc
 
-#endif // PROC_H
+#endif // KGD_UTILS_PROC_H

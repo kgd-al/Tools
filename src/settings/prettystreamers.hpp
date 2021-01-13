@@ -1,5 +1,5 @@
-#ifndef _PRETTY_STREAMERS_HPP_
-#define _PRETTY_STREAMERS_HPP_
+#ifndef KGD_UTILS_PRETTY_STREAMERS_HPP
+#define KGD_UTILS_PRETTY_STREAMERS_HPP
 
 #include <ostream>
 #include <map>
@@ -239,4 +239,4 @@ struct PrettyReader<std::map<K,V>> {
   }
 };
 
-#endif // _PRETTY_STREAMERS_HPP_
+#endif // KGD_UTILS_PRETTY_STREAMERS_HPP

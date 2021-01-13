@@ -1,5 +1,5 @@
-#ifndef _SELF_AWARE_GENOME_H_
-#define _SELF_AWARE_GENOME_H_
+#ifndef KGD_SELF_AWARE_GENOME_H
+#define KGD_SELF_AWARE_GENOME_H
 
 #include <iomanip>
 #include <string>
@@ -29,11 +29,13 @@
 
 namespace utils {
 
+/// IDs can be converted from json (using the underlying type)
 template <typename T>
 void from_json (const nlohmann::json &j, GenomeID<T> &gid) {
   gid.id = typename GenomeID<T>::ID(j.get<typename GenomeID<T>::ut>());
 }
 
+/// IDs can be converted to json (using the underlying type)
 template <typename T>
 void to_json (nlohmann::json &j, const GenomeID<T> &gid) {
   j = typename GenomeID<T>::ut(gid.id);
@@ -1278,4 +1280,4 @@ struct Aggregator<T, O,
 
 } // end of namespace genotype
 
-#endif // _SELF_AWARE_GENOME_H_
+#endif // KGD_SELF_AWARE_GENOME_H

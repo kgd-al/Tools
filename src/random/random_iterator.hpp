@@ -1,5 +1,5 @@
-#ifndef _RANDOM_ITERATOR_HPP_
-#define _RANDOM_ITERATOR_HPP_
+#ifndef KGD_UTILS_RANDOM_ITERATOR_HPP
+#define KGD_UTILS_RANDOM_ITERATOR_HPP
 
 /*!
  * Contains the definition for a random iterator with for-range compatibilities
@@ -167,4 +167,4 @@ _details::RandomIterator<C> randomIterator(C &c, AbstractDice &d) {
 
 } // end of namespace rng
 
-#endif // _RANDOM_ITERATOR_HPP_
+#endif // KGD_UTILS_RANDOM_ITERATOR_HPP

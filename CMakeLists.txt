@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.4)
 
-####################################################################################################
+################################################################################
 ## General settings
-####################################################################################################
+################################################################################
 
 project("tools")
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")#"-ftime-report")
@@ -22,14 +22,14 @@ endif()
 message("Install path is ${CMAKE_INSTALL_PREFIX}/")
 
 
-####################################################################################################
+################################################################################
 ## Managing uneven support of std 17 filesystem
-####################################################################################################
+################################################################################
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9")
     set(FS_LIB stdc++fs)
-    add_definitions(-DEXPERIMENTAL_STD_FILESYSTEM)
+    list(APPEND KGD_DEFINITIONS -DEXPERIMENTAL_STD_FILESYSTEM)
     message("> Using experimental g++ std 17 filesystem support")
   endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -38,9 +38,15 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   message("> Using experimental clang std 17 filesystem support")
 endif()
 
-####################################################################################################
+################################################################################
+## Process additional pre-processor definitions
+################################################################################
+add_definitions(${KGD_DEFINITIONS})
+message("Using additionnal pre-processor definitions: ${KGD_DEFINITIONS}")
+
+################################################################################
 ## Static library
-####################################################################################################
+################################################################################
 
 set(SOURCES
     "src/genotype/selfawaregenome.hpp"
@@ -82,9 +88,9 @@ if (BUILD_TESTS)
 endif()
 
 
-####################################################################################################
+################################################################################
 ## Options
-####################################################################################################
+################################################################################
 
 message("")
 
@@ -106,9 +112,9 @@ endif()
 option(BUILD_TESTS "Sets whether to build the tests executables" OFF)
 message("Build tests " ${BUILD_TESTS})
 
-####################################################################################################
+################################################################################
 ## Make documentation
-####################################################################################################
+################################################################################
 
 option(GENERATE_HELP "Whether or not to build the help through doxygen" OFF)
 message("Help generation is " ${GENERATE_HELP})
@@ -140,9 +146,9 @@ if (GENERATE_HELP)
 endif()
 
 
-####################################################################################################
+################################################################################
 ## Export configuration
-####################################################################################################
+################################################################################
 
 install(TARGETS tools ARCHIVE DESTINATION lib/kgd)
 
@@ -194,6 +200,8 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include/)
 set(${PROJECT_NAME}_LIBRARIES
     ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>
     ${FS_LIB})
+
+set(${PROJECT_NAME}_KGD_DEFINITIONS ${KGD_DEFINITIONS})
 
 set(${PROJECT_NAME}_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 if(NOT \${${PROJECT_NAME}_BUILD_TYPE} STREQUAL \${CMAKE_BUILD_TYPE})

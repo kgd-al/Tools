@@ -1,5 +1,5 @@
-#ifndef SHELL_HPP
-#define SHELL_HPP
+#ifndef KGD_UTILS_SHELL_HPP
+#define KGD_UTILS_SHELL_HPP
 
 /*
  * \file shell.hpp
@@ -102,4 +102,4 @@ const char *const         WHITE = ESC("107");  ///< White backgound color
 } // end of namespace shell
 
 #undef ESC
-#endif // SHELL_HPP
+#endif // KGD_UTILS_SHELL_HPP

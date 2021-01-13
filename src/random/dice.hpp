@@ -1,5 +1,5 @@
-#ifndef _DICE_HPP_
-#define _DICE_HPP_
+#ifndef KGD_UTILS_DICE_HPP
+#define KGD_UTILS_DICE_HPP
 
 /******************************************************************************//**
  * \file
@@ -524,4 +524,4 @@ public:
 
 } // end of namespace rng
 
-#endif // _DICE_HPP_
+#endif // KGD_UTILS_DICE_HPP

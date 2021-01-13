@@ -1,5 +1,5 @@
-#ifndef INDENTINGOSTREAM_HPP
-#define INDENTINGOSTREAM_HPP
+#ifndef KGD_UTILS_INDENTINGOSTREAM_HPP
+#define KGD_UTILS_INDENTINGOSTREAM_HPP
 
 /*! \file indentingostream.h
  * \brief Provides declaration for an automatic stream indenter
@@ -42,4 +42,4 @@ public:
 
 } // end of namespace utils
 
-#endif // INDENTINGOSTREAM_HPP
+#endif // KGD_UTILS_INDENTINGOSTREAM_HPP

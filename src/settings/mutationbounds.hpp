@@ -1,5 +1,5 @@
-#ifndef _MUTATION_BOUNDS_HPP
-#define _MUTATION_BOUNDS_HPP
+#ifndef KGD_UTILS_MUTATION_BOUNDS_HPP
+#define KGD_UTILS_MUTATION_BOUNDS_HPP
 
 #include <cassert>
 

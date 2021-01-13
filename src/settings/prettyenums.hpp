@@ -1,5 +1,5 @@
-#ifndef _PRETTY_ENUMS_HPP_
-#define _PRETTY_ENUMS_HPP_
+#ifndef KGD_UTILS_PRETTY_ENUMS_HPP
+#define KGD_UTILS_PRETTY_ENUMS_HPP
 
 #include <set>
 
@@ -409,4 +409,4 @@ std::istream& operator>> (std::istream &is, E& e) {
   }                                                     \
 /// \endcond
 
-#endif // _PRETTY_ENUMS_HPP_
+#endif // KGD_UTILS_PRETTY_ENUMS_HPP

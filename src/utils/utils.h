@@ -1,5 +1,5 @@
-#ifndef _UTILS_H_
-#define _UTILS_H_
+#ifndef KGD_UTILS_H
+#define KGD_UTILS_H
 
 #include "cxxabi.h"
 
@@ -454,21 +454,33 @@ struct CurrentTime {
 // =============================================================================
 // Cleaner management of IDs
 
+/// Helper struct for strongly encapsulating an integer-based id
 template <typename T>
 struct GenomeID {
-  using ut = uint;
-  enum class ID : ut { INVALID = 0 };
-  ID id;
+  using ut = uint;  ///< The underlying type
 
+  /// The containing enumeration
+  enum class ID : ut {
+    INVALID = 0 ///< IDs are 1-based, zero is reserved for errors
+  };
+
+  ID id;  ///< The actual value
+
+  /// Default-constructs to the first valid id
   GenomeID (void) : id(next(ID::INVALID)) {}
+
+  /// Explicit construct using the provided value
+  /// \warning IDs are 1-based so the actual value is incremented
   explicit GenomeID (ut value) {
     id = next(ID(value));
   }
 
+  /// Access the id
   constexpr operator ID (void) const {
     return id;
   }
 
+  /// Increment an id
   static constexpr GenomeID next (GenomeID &gid) {
     GenomeID current = gid;
     gid.id = next(gid.id);
@@ -476,19 +488,23 @@ struct GenomeID {
   }
 
 private:
+  /// Private increment helper
   static constexpr ID next (ID id) {  return ID(ut(id)+1);  }
 };
 
+/// IDs are transparently streamable
 template <typename T>
 std::ostream& operator<< (std::ostream &os, const GenomeID<T> &gid) {
   return os << typename GenomeID<T>::ut(gid.id);
 }
 
+/// IDs are transparently comparable
 template <typename T>
 bool operator< (const GenomeID<T> &lhs, const GenomeID<T> &rhs) {
   return lhs.id < rhs.id;
 }
 
+/// Generate an ID field for a given structure
 #define HAS_GENOME_ID(C) \
   using ID = utils::GenomeID<C>; \
   ID id;
@@ -567,4 +583,4 @@ public:
 } // end of namespace utils
 
 
-#endif // _UTILS_H_
+#endif // KGD_UTILS_H
