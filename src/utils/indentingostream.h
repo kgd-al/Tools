@@ -18,18 +18,11 @@ class IndentingOStreambuf : public std::streambuf {
   std::streambuf*     _buffer;  ///< Associated buffer
   bool                _isAtStartOfLine; ///< Whether to insert indentation
 
-  const uint          _thisIndent;  ///< Local indentation
   const std::string   _indent;  ///< Indentation value
 
 protected:
   /// Overrides std::basic_streambuf::overflow to insert indentation at line start
   int overflow (int ch) override;
-
-  /// \returns index of indent-storage space inside the ios_base static region
-  static uint index (void);
-
-  /// \returns the indent level for the associated level
-  uint indent (int di = 0);
 
 public:
   /// Creates a proxy buffer managing indentation level
