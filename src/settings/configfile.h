@@ -4,6 +4,7 @@
 #include <regex>
 #include <iostream>
 #include <fstream>
+#include <map>
 
 /// TODO Remove experimental when gaining access to a recent enough version of g++
 
@@ -23,7 +24,7 @@ namespace stdfs = std::filesystem;
 
 
 /*!
- * \file
+ * \file configfile.h
  * Contains the facilities for producing self-aware hierarchical configuration files
  *
  * Canonical example:
@@ -550,7 +551,7 @@ public:
 // =============================================================================
 // Config file template implementation
 
-/// \copydoc configfile.h
+/// The user-exposed interface to a configuration file
 ///
 template <class F>
 class ConfigFile : public _details::AbstractConfigFile {
