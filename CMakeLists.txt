@@ -5,6 +5,9 @@ cmake_minimum_required(VERSION 3.4)
 ################################################################################
 
 project("tools")
+message("\n####################################################################"
+    "############\n## CMakeFile for ${PROJECT_NAME}")
+
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")#"-ftime-report")
 set(CMAKE_CXX_STANDARD 17)
 
