@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.4)
 ## General settings
 ################################################################################
 
-project("tools")
+project("Tools")
 message("\n####################################################################"
     "############\n## CMakeFile for ${PROJECT_NAME}")
 
@@ -22,6 +22,7 @@ if (${CMAKE_INSTALL_PREFIX} MATCHES "^$ENV{HOME}")
     string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
     string(APPEND CMAKE_INSTALL_PREFIX "/${BUILD_TYPE}")
 endif()
+set(LIB_BASE "${CMAKE_INSTALL_PREFIX}/lib/kgd")
 message("Install path is ${CMAKE_INSTALL_PREFIX}/")
 
 
@@ -41,11 +42,13 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   message("> Using experimental clang std 17 filesystem support")
 endif()
 
+
 ################################################################################
 ## Process additional pre-processor definitions
 ################################################################################
 add_definitions(${KGD_DEFINITIONS})
 message("Using additionnal pre-processor definitions: ${KGD_DEFINITIONS}")
+
 
 ################################################################################
 ## Static library
@@ -77,9 +80,13 @@ set(SOURCES
 set (EXTERNALS
     "src/external/cxxopts.hpp"
     "src/external/json.hpp"
+
+    "src/external/gaga/gaga.hpp"
+    "src/external/gaga/tinypool.hpp"
 )
 add_library(tools STATIC ${SOURCES} ${EXTERNALS})
 target_link_libraries(tools ${FS_LIB})
+list(APPEND NEW_CORE_LIBS ${LIB_BASE}/$<TARGET_FILE_NAME:tools>)
 
 if (BUILD_TESTS)
     # Test self-aware genomes
@@ -94,8 +101,6 @@ endif()
 ################################################################################
 ## Options
 ################################################################################
-
-message("")
 
 option(WITH_DEBUG_INFO "Sets whether to maximize debug data collection" OFF)
 message("With debug info " ${WITH_DEBUG_INFO})
@@ -192,7 +197,7 @@ if (GENERATE_HELP)
     )
 endif()
 
-set(CONFIG "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-config.cmake")
+set(CONFIG "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake")
 file(GENERATE
     OUTPUT ${CONFIG}
     CONTENT
@@ -201,10 +206,12 @@ file(GENERATE
 set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include/)
 
 set(${PROJECT_NAME}_LIBRARIES
-    ${CMAKE_INSTALL_PREFIX}/lib/kgd/$<TARGET_FILE_NAME:tools>
+    ${NEW_CORE_LIBS}
     ${FS_LIB})
 
 set(${PROJECT_NAME}_KGD_DEFINITIONS ${KGD_DEFINITIONS})
+set(DEPENDENCY_GENERATOR
+    ${CMAKE_INSTALL_PREFIX}/cmake/generate_dependency_data.sh)
 
 set(${PROJECT_NAME}_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 if(NOT \${${PROJECT_NAME}_BUILD_TYPE} STREQUAL \${CMAKE_BUILD_TYPE})
@@ -216,7 +223,7 @@ install(FILES ${CONFIG} DESTINATION cmake)
 
 set(BUILDABLES "Tools")
 set(DEPENDENCY_GENERATOR ${PROJECT_SOURCE_DIR}/scripts/generate_dependency_data.sh)
-foreach(proj cxxopts json Tools)
+foreach(proj cxxopts json gaga Tools)
     set(PROJ_DIR "${PROJECT_SOURCE_DIR}/../${proj}")
     string(TOLOWER ${proj} proj_l)
     set(DEPENDENCY_FILE "${CMAKE_CURRENT_BINARY_DIR}/${proj_l}.dependency")
