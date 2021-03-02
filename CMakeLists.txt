@@ -83,6 +83,7 @@ set (EXTERNALS
 
     "src/external/gaga/gaga.hpp"
     "src/external/gaga/tinypool.hpp"
+    "src/external/gaga/novelty.hpp"
 )
 add_library(tools STATIC ${SOURCES} ${EXTERNALS})
 target_link_libraries(tools ${FS_LIB})
