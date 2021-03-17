@@ -1168,6 +1168,10 @@ struct Aggregator<T, O,
 
 /// \endcond
 
+/// Standard definition of e-dna with CRTP
+#define EDNA(GENOME)            \
+  GENOME : public EDNA<GENOME>
+
 /// Includes the necessary friend declarations
 #define APT_EDNA()                                  \
   friend struct config::EDNAConfigFile<this_t>;     \

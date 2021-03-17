@@ -13,7 +13,7 @@
 // =============================================================================
 // trivial.h
 namespace genotype {
-class InternalTrivial : public EDNA<InternalTrivial> {
+class EDNA(InternalTrivial) {
   APT_EDNA()
 public:
   InternalTrivial(void) : floatField(0) {}
@@ -60,7 +60,7 @@ DEFINE_GENOME_DISTANCE_WEIGHTS({
 // =============================================================================
 // complex.h
 namespace genotype {
-class InternalComplex : public EDNA<InternalComplex> {
+class EDNA(InternalComplex) {
   APT_EDNA()
 public:
   InternalComplex(void) {}
@@ -177,7 +177,6 @@ DEFINE_GENOME_DISTANCE_WEIGHTS({
 #undef GENOME
 // end of complex.cpp
 
-
 // =============================================================================
 // == External genome with a fundamental types and sub-genomes
 // =============================================================================
@@ -194,7 +193,7 @@ std::istream& operator>> (std::istream &is, Enum &e) {
   return is;
 }
 
-struct External : public EDNA<External> {
+struct EDNA(External) {
   APT_EDNA()
 public:
   External(void) {}
