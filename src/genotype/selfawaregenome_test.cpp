@@ -74,6 +74,7 @@ struct Extractor<std::string> {
   }
 };
 
+#ifdef WITH_EDNA_AGGREGATORS
 template <>
 struct Aggregator<decltype(InternalComplex::stringField), InternalComplex> {
   using S = decltype(InternalComplex::stringField);
@@ -87,6 +88,7 @@ struct Aggregator<decltype(InternalComplex::stringField), InternalComplex> {
     os << "]\n";
   }
 };
+#endif
 
 DECLARE_GENOME_FIELD(InternalComplex, std::string, stringField)
 } // end of namespace genotype
@@ -209,6 +211,7 @@ public:
   A arrayField;
 };
 
+#ifdef WITH_EDNA_AGGREGATORS
 template <>
 struct Aggregator<decltype(External::vectorField), External> {
   using V = decltype(External::vectorField);
@@ -239,6 +242,8 @@ struct Aggregator<decltype(External::vectorField), External> {
     os << "]\n";
   }
 };
+#endif
+
 DECLARE_GENOME_FIELD(External, int, intField)
 DECLARE_GENOME_FIELD(External, std::vector<InternalTrivial>, vectorField)
 DECLARE_GENOME_FIELD(External, InternalComplex, recField)

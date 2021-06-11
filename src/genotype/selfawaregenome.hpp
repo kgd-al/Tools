@@ -190,7 +190,7 @@ struct Extractor<T, typename std::enable_if<utils::is_cpp_array<T>::value
   }
 };
 
-
+#ifdef WITH_EDNA_AGGREGATORS
 // =============================================================================
 // == Field aggregation
 
@@ -273,7 +273,7 @@ struct Aggregator<T, O, typename std::enable_if<_details::is_pretty_enum<T>::val
     os << " ]";
   }
 };
-
+#endif
 
 // =============================================================================
 // == Field metadata
@@ -362,10 +362,12 @@ public:
   /// \returns the string equivalent of value under \p field in the provided object
   virtual std::string getField (const G &object, const std::string &field) const = 0;
 
+#ifdef WITH_EDNA_AGGREGATORS
   /// Writes an aggregate description of the managed field in each of the
   /// provided genomes into a synthetic description
   virtual void aggregate (std::ostream &os, const std::vector<G> &objects,
                           uint verbosity) const = 0;
+#endif
 
   /// \see EDNA::printMutationRates
   virtual void printMutationRates (std::ostream &os, uint, uint, float) const {
@@ -474,11 +476,13 @@ public:
     return Extractor<T>()(get(object), field);
   }
 
+#ifdef WITH_EDNA_AGGREGATORS
   void aggregate (std::ostream &os, const std::vector<O> &objects,
                   uint verbosity) const override {
     Aggregator<T, O>()(os, objects,
                        static_cast<const T&(*)(const O&)>(get), verbosity);
   }
+#endif
 
 protected:
   /// Delegate checker. Overriden in subclasses to perform the actual detection
@@ -946,6 +950,7 @@ public:
     return G(j);
   }
 
+#ifdef WITH_EDNA_AGGREGATORS
   /// Aggregates a collection of genome into a synthetic description
   static void aggregate (std::ostream &os, const std::vector<G> &objects,
                          uint verbosity = 0) {
@@ -961,6 +966,7 @@ public:
       os << "\n";
     }
   }
+#endif
 
   /// Pretty prints the mutation rates for all the fields contained (directly or
   /// indirectly) by this genome
@@ -1112,6 +1118,7 @@ struct Extractor<T,
   }
 };
 
+#ifdef WITH_EDNA_AGGREGATORS
 /// Delegates aggregation to the SelfAwareGenome::aggregate
 template <typename T, typename O>
 struct Aggregator<T, O,
@@ -1128,6 +1135,7 @@ struct Aggregator<T, O,
     T::aggregate(os, subobjects, verbosity);
   }
 };
+#endif
 
 /// \cond internal
 

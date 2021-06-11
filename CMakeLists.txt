@@ -118,6 +118,13 @@ if(WITH_DEBUG_INFO)
     endif()
 endif()
 
+option(EDNA_AGGREGATORS "Whether to provide aggregation functionality (and to
+    require it from derived genomes)" OFF)
+message("> Aggregation ${EDNA_AGGREGATORS}")
+if (EDNA_AGGREGATORS)
+    add_definitions(-DWITH_EDNA_AGGREGATORS)
+endif()
+
 option(BUILD_TESTS "Sets whether to build the tests executables" OFF)
 message("Build tests " ${BUILD_TESTS})
 
@@ -213,6 +220,8 @@ set(${PROJECT_NAME}_LIBRARIES
 set(${PROJECT_NAME}_KGD_DEFINITIONS ${KGD_DEFINITIONS})
 set(DEPENDENCY_GENERATOR
     ${CMAKE_INSTALL_PREFIX}/cmake/generate_dependency_data.sh)
+
+$<$<BOOL:${EDNA_AGGREGATORS}>:add_definitions(-DWITH_EDNA_AGGREGATORS)>
 
 set(${PROJECT_NAME}_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 if(NOT \${${PROJECT_NAME}_BUILD_TYPE} STREQUAL \${CMAKE_BUILD_TYPE})
