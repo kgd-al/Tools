@@ -296,9 +296,9 @@ std::ostream& operator<< (std::ostream &os, const std::pair<T1, T2> &p) {
 
 /// \return a filled std::array
 template <typename ARRAY>
-ARRAY uniformStdArray(typename ARRAY::value_type v) {
-  ARRAY a;
-  a.fill(v);
+constexpr ARRAY uniformStdArray(typename ARRAY::value_type v) {
+  ARRAY a {};
+  for (auto &i: a)  i = v;
   return a;
 }
 

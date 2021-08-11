@@ -20,18 +20,27 @@ public:
   virtual ~InternalTrivial(void) = default;
 
   float floatField;
+
+  double customStdDbl;
+  using DArray = std::array<double,4>;
+  DArray customStdArr; // Test custom std on mutation
 };
 DECLARE_GENOME_FIELD(InternalTrivial, float, floatField)
+DECLARE_GENOME_FIELD(InternalTrivial, double, customStdDbl)
+DECLARE_GENOME_FIELD(InternalTrivial, InternalTrivial::DArray, customStdArr)
 } // end of namespace genotype
 // end of trivial.h
 
 // =============================================================================
 // trivialconfig.h
+using DArray = genotype::InternalTrivial::DArray;
 namespace genotype { class InternalTrivial; }
 namespace config {
 template <>
 struct EDNA_CONFIG_FILE(InternalTrivial) {
   DECLARE_PARAMETER(B<float>, floatFieldBounds)
+  DECLARE_PARAMETER(B<double>, customStdDblBounds)
+  DECLARE_PARAMETER(B<DArray>, customStdArrBounds)
 
   DECLARE_PARAMETER(MR, mutationRates)
   DECLARE_PARAMETER(DW, distanceWeights)
@@ -43,13 +52,26 @@ struct EDNA_CONFIG_FILE(InternalTrivial) {
 // trivial.cpp
 #define GENOME InternalTrivial
 DEFINE_GENOME_FIELD_WITH_BOUNDS(float, floatField, "ff", -4.f, 0.f, 0.f, 4.f)
+DEFINE_GENOME_FIELD_WITH_BOUNDS(double, customStdDbl, "stdDbl", -4., 0., 0., 4., 1e-1)
+DEFINE_GENOME_FIELD_WITH_BOUNDS(DArray, customStdArr, "stdArr",
+                                utils::uniformStdArray<DArray>(-4.),
+                                utils::uniformStdArray<DArray>( 0.),
+                                utils::uniformStdArray<DArray>( 0.),
+                                utils::uniformStdArray<DArray>(+4.)/*,
+                                config::_details::replace_with_float<DArray>::type {
+                                  1e-1, 1e-2, 1e-3, 1e-4
+                                }*/)
 
 DEFINE_GENOME_MUTATION_RATES({
-  EDNA_PAIR(floatField, 1.f ),
+  EDNA_PAIR(  floatField, 1.f ),
+  EDNA_PAIR(customStdDbl, 1.f ),
+  EDNA_PAIR(customStdArr, 1.f ),
 })
 
 DEFINE_GENOME_DISTANCE_WEIGHTS({
-  EDNA_PAIR(floatField, 1.f ),
+  EDNA_PAIR(  floatField, 1.f ),
+  EDNA_PAIR(customStdDbl, 1.f ),
+  EDNA_PAIR(customStdArr, 1.f ),
 })
 
 #undef GENOME
@@ -122,7 +144,11 @@ static const auto stringFunctor = [] {
       [] (auto &dice) { return std::string(dice(1u,2u), '#'); };
 
   functor.mutate =
-      [] (auto &s, auto &dice) { s += dice(min, max); };
+      [] (auto &s, auto &dice) {
+        s += dice(min, max);
+        if (log())
+          std::cerr << " added " << s[s.size()-1] << " at " << s.size()-1;
+      };
 
   functor.cross =
       [] (const auto &ls, const auto &rs, auto &dice) {
@@ -295,6 +321,7 @@ static const auto vectorFunctor = [] {
   GENOME_FIELD_FUNCTOR(V, vectorField) functor {};
   functor.random = [] (auto &d) { return V{I::random(d),I::random(d)}; };
   functor.mutate = [] (auto &v, auto &d) {
+    if (log()) std::cerr << "useless autolog for vector field";
     d(v)->mutate(d);
   };
   functor.cross = [] (const auto &lhs, const auto &rhs, auto &d) {
@@ -351,7 +378,7 @@ DEFINE_GENOME_DISTANCE_WEIGHTS({
 // =============================================================================
 // == Possible use cases
 template <typename GENOME, typename F1, typename F2>
-void showcase (F1 setter, F2 getter) {
+void showcase (F1 setter, F2 getter, uint mutations = 5) {
   GENOME::config_t::setupConfig("", config::SHOW);
 
   GENOME g0 {};
@@ -371,7 +398,7 @@ void showcase (F1 setter, F2 getter) {
   GENOME g1 = GENOME::random(dice);
   std::cout << "\nRandom g1:" << g1 << std::endl;
 
-  for (uint i=0; i<5; i++) {
+  for (uint i=0; i<mutations; i++) {
     g1.mutate(dice);
     std::cout << "\nAfter mutation " << i << ":" << g1 << std::endl;
   }
@@ -400,23 +427,27 @@ void showcase (F1 setter, F2 getter) {
 
   for (const GENOME &g: genomes)  getter(g);
 
+#ifdef EDNA_AGGREGATORS
   std::cout << "Aggregated " << genomes.size() << " genomes:\n";
   GENOME::aggregate(std::cout, genomes, genomes.size());
+#endif
 
   std::cout.flush();
   std::cerr.flush();
 }
 
 int main (void) {
+  config::EDNAConfigFile_common::autologMutations(true);
+
   genotype::InternalTrivial::printMutationRates(std::cout, 2);
   genotype::InternalComplex::printMutationRates(std::cout, 2);
   genotype::External::printMutationRates(std::cout, 2);
 
-//  showcase<genotype::InternalTrivial>([] (auto&) {}, [] (auto&) {});
+//  showcase<genotype::InternalTrivial>([] (auto&) {}, [] (auto&) {}, 50);
 
-//  showcase<genotype::InternalComplex>([] (auto &g) {
-//    g.stringField = "tOt!";
-//  }, [] (auto&) {});
+  showcase<genotype::InternalComplex>([] (auto &g) {
+    g.stringField = "tOt!";
+  }, [] (auto&) {});
 
 //  showcase<genotype::External>([] (auto &g) {
 //    rng::FastDice dice (1);

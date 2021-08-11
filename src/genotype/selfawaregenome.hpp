@@ -551,7 +551,7 @@ protected:
 
   using Base::get;
 
-private:
+protected:
   using typename Base::Dice;
 
   /// Function for generating a random, valid value for the associated field
@@ -577,6 +577,10 @@ public:
     Cross_f cross = nullptr;      ///< \copydoc Cross_f
     Distn_f distance = nullptr;   ///< \copydoc Distn_f
     Check_f check = nullptr;      ///< \copydoc Check_f
+
+    static auto log (void) {
+      return config::EDNAConfigFile_common::autologMutations();
+    }
 
   } _functor; ///< The function set used to manage this field
 
@@ -804,16 +808,22 @@ public:
 
     if (config::EDNAConfigFile_common::autologMutations()
         && !manager.isSubgenomeField()) {
-      std::cerr << "Mutated field " << fieldName << " from ";
-      manager.print(std::cerr, object);
+      std::cerr << "Mutated field " << fieldName;
+      if (!manager.isFunctorManaged()) {
+        std::cerr << " from ";
+        manager.print(std::cerr, object);
+      }
     }
 
     manager.mutate(object, dice);
     object.mutateExtension(dice);
 
-    if (config::EDNAConfigFile_common::autologMutations() && !manager.isSubgenomeField()) {
-      std::cerr << " to ";
-      manager.print(std::cerr, object);
+    if (config::EDNAConfigFile_common::autologMutations()
+        && !manager.isSubgenomeField()) {
+      if (!manager.isFunctorManaged()) {
+        std::cerr << " to ";
+        manager.print(std::cerr, object);
+      }
       std::cerr << std::endl;
     }
   }
@@ -1236,8 +1246,12 @@ struct Aggregator<T, O,
                                 TYPE, NAME, ALIAS, 0)       \
 
 /// Helper alias to the type of a functor object for a specific, auto-managed,
-/// field
+/// field (also defines a helper reference to the autolog config value, albeit
+/// in a very ugly fashion...)
 #define GENOME_FIELD_FUNCTOR(TYPE, NAME) \
+  static const auto log = [] { \
+     return config::EDNAConfigFile_common::autologMutations(); \
+  }; \
   __TARGS(GenomeFieldWithFunctor, TYPE, NAME)::Functor
 
 /// Defines an object linking a rate to an automatic field manager

@@ -28,6 +28,18 @@ struct MutationSettings {
     static_assert(sizeof(T) == -1, "Invalid bound type");
   };
 
+  template <typename T, typename = void>
+  struct stddev_t {
+    using type = float;
+    static constexpr type implicitValue = 1e-2;
+  };
+
+  template <typename T, size_t SIZE>
+  struct stddev_t<std::array<T,SIZE>> {
+    using type = std::array<float,SIZE>;
+    static constexpr type implicitValue = utils::uniformStdArray<type>(1e-2);
+  };
+
   /// Mutation bounds for a specific genomic field
   /// \tparam T a primitive type (int, float, ...)
   template <typename T, typename O>
@@ -49,23 +61,31 @@ struct MutationSettings {
     /// Maximal value reachable through random initialisation/mutation
     T max;
 
+    /// Standard deviations for automated mutations
+    using StdDev_t = stddev_t<T>;
+    using StdDev = typename stddev_t<T>::type;
+    StdDev stddev;
+
     /// Default value
     Bounds (void) {}
 
-    /// Use provided bounds a absolute minimal, initial minimal, initial maximal, absolute maximal
-    Bounds (T min, T rndMin, T rndMax, T max)
-      : min(min), rndMin(rndMin), rndMax(rndMax), max(max) {
+    /// Use provided bounds a absolute minimal, initial minimal,
+    /// initial maximal, absolute maximal
+    Bounds (T min, T rndMin, T rndMax, T max,
+            StdDev stddev = StdDev_t::implicitValue)
+      : min(min), rndMin(rndMin), rndMax(rndMax), max(max), stddev(stddev) {
       assert(min <= rndMin && rndMin <= rndMax && rndMax <= max);
     }
 
     /// No difference between absolute and initial extremums
-    Bounds (T min, T max) : Bounds(min, min, max, max) {}
+    Bounds (T min, T max, StdDev stddev = StdDev_t::implicitValue)
+      : Bounds(min, min, max, max, stddev) {}
 
-    /// Different absolute and initial minimals. Identical for maximal.
-    Bounds (T min, T rndMin, bool, T max) : Bounds(min, rndMin, max, max) {}
+//    /// Different absolute and initial minimals. Identical for maximal.
+//    Bounds (T min, T rndMin, bool, T max) : Bounds(min, rndMin, max, max) {}
 
-    /// Different absolute and initial maximals. Identical for minimal.
-    Bounds (T min, bool, T rndMax, T max) : Bounds(min, min, rndMax, max) {}
+//    /// Different absolute and initial maximals. Identical for minimal.
+//    Bounds (T min, bool, T rndMax, T max) : Bounds(min, min, rndMax, max) {}
 
     /// \return a value in the initial range
     T rand (Dice &dice) const {
@@ -80,7 +100,7 @@ struct MutationSettings {
 
     /// Mutates the \p v according to the absolute bounds
     void mutate (T &v, Dice &dice) const {
-      Operators::mutate(v, min, max, dice);
+      Operators::mutate(v, min, max, stddev, dice);
     }
 
     /// Checks that \p v is inside the absolute bounds
@@ -91,26 +111,31 @@ struct MutationSettings {
     /// Streams a simple, space-delimited, representation
     friend std::ostream& operator<< (std::ostream& os, const Bounds &b) {
       using utils::operator<<;
-      return os << "(" << b.min << " " << b.rndMin << " " << b.rndMax << " " << b.max << ")";
+      return os << "(" << b.min << " " << b.rndMin << " "
+                << b.rndMax << " " << b.max << " " << b.stddev << ")";
     }
 
     /// Reads data from a simple, space-delimited, representation
     friend std::istream& operator>> (std::istream& is, Bounds &b) {
       using utils::operator>>;
       char junk;
-      is >> junk >> b.min >> b.rndMin >> b.rndMax >> b.max >> junk;
+      is >> junk >> b.min >> b.rndMin >> b.rndMax >> b.max >> b.stddev >> junk;
       return is;
     }
 
     /// Stores as a simple json array
     friend void to_json (nlohmann::json &j, const Bounds &b) {
-      j = {b.min, b.rndMin, b.rndMax, b.max};
+      j = {b.min, b.rndMin, b.rndMax, b.max, b.stddev};
     }
 
     /// Restores from a simple json array
     friend void from_json (const nlohmann::json &j, Bounds &b) {
       uint i=0;
-      b.min = j[i++], b.rndMin = j[i++], b.rndMax = j[i++], b.max = j[i++];
+      b.min = j[i++];
+      b.rndMin = j[i++];
+      b.rndMax = j[i++];
+      b.max = j[i++];
+      b.stddev = j[i++];
     }
   };
 
@@ -141,8 +166,8 @@ struct MutationSettings::BoundsOperators<T, std::enable_if_t<std::is_fundamental
   }
 
   /// \copydoc MutationSettings::Bounds::mutate
-  static void mutate (T &v, T min, T max, Dice &dice) {
-    _mutate(v, min, max, dice);
+  static void mutate (T &v, T min, T max, float param, Dice &dice) {
+    _mutate(v, min, max, param, dice);
   }
 
   /// \copydoc MutationSettings::Bounds::check
@@ -158,7 +183,7 @@ private:
   /// Mutates the integer \p v according to the absolute bounds
   template <typename U=T>
   static std::enable_if_t<std::is_integral<U>::value, void>
-  _mutate (U &v, const U min, const U max, Dice &dice) {
+  _mutate (U &v, const U min, const U max, float /*param*/, Dice &dice) {
     assert(min <= v && v <= max);
     if (v == min)         v = min + 1;
     else if (v == max)    v = max - 1;
@@ -168,12 +193,10 @@ private:
   /// Mutates the decimal \p v according to the absolute bounds
   template <typename U=T>
   static std::enable_if_t<std::is_floating_point<U>::value, void>
-  _mutate (U &v, const U min, const U max, Dice &dice) {
-    static constexpr double __MAGIC_BULLET = 1e-2;
-
+  _mutate (U &v, const U min, const U max, float stddev, Dice &dice) {
     assert(min <= v && v <= max);
     if (min < max) {
-      rng::tndist dist (0, (max - min) * __MAGIC_BULLET, min - v, max - v, true);
+      rng::tndist dist (0, (max - min) * stddev, min - v, max - v, true);
       v += dice(dist);
     }
   }
@@ -199,9 +222,9 @@ struct MutationSettings::BoundsOperators<E, std::enable_if_t<std::is_enum<E>::va
   }
 
   /// Change the enumeration value by another, valid, one
-  static void mutate (E &v, E min, E max, Dice &dice) {
+  static void mutate (E &v, E min, E max, float param, Dice &dice) {
     int iv = v;
-    Operator::mutate(iv, int(min), int(max), dice);
+    Operator::mutate(iv, int(min), int(max), param, dice);
     v = E(iv);
   }
 
@@ -248,9 +271,11 @@ struct MutationSettings::BoundsOperators<T, std::enable_if_t<utils::is_cpp_array
 
   /// Mutates a single value in the multidimensional \p v
   /// according to the absolute bounds
-  static void mutate (T &a, const T &min, const T &max, Dice &dice) {
+  template <typename P>
+  static void mutate (T &a, const T &min, const T &max, const P &params,
+                      Dice &dice) {
     uint i = dice(0ul, a.size()-1);
-    FOperators::mutate(a[i], min[i], max[i], dice);
+    FOperators::mutate(a[i], min[i], max[i], params[i], dice);
   }
 
   /// Checks that each value in \p a is inside the absolute bounds
