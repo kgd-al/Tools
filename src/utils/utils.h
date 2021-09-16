@@ -258,7 +258,7 @@ void doThrow (ARGS... args) {
 template <typename T, size_t SIZE>
 std::ostream& operator<< (std::ostream &os, const std::array<T, SIZE> &a) {
   os << "[ ";
-  for (auto &v: a) os << v << " ";
+  for (const auto &v: a) os << v << " ";
   return os << "]";
 }
 
@@ -276,7 +276,7 @@ std::istream& operator>> (std::istream &is, std::array<T, SIZE> &a) {
 template <typename T>
 std::ostream& operator<< (std::ostream &os, const std::vector<T> &vec) {
   os << "[ ";
-  for (auto &v: vec) os << v << " ";
+  for (const auto &v: vec) os << v << " ";
   return os << "]";
 }
 
@@ -284,7 +284,7 @@ std::ostream& operator<< (std::ostream &os, const std::vector<T> &vec) {
 template <typename T, typename C>
 std::ostream& operator<< (std::ostream &os, const std::set<T, C> &s) {
   os << "[ ";
-  for (auto &v: s) os << v << " ";
+  for (const auto &v: s) os << v << " ";
   return os << "]";
 }
 

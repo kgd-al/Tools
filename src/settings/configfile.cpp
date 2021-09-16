@@ -42,6 +42,8 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
                                 const std::string& name, const stdfs::path& path,
                                 std::ostream &os) {
 
+//  std::cerr << __PRETTY_FUNCTION__
+//            << "\n\t> Writing " << name << " to " << path << "\n";
 
   if (iterator.size() == 0) {
     os << "Empty configuration file: " << name
@@ -127,14 +129,18 @@ enum State { START, HEADER, BODY, END };
 AbstractConfigFile::ReadResult
 AbstractConfigFile::read(ConfigIterator &it,
                          const std::string &name,
-                         std::istream &is) {
+                         std::istream &is,
+                         const stdfs::path &path) {
+
+//  std::cerr << __PRETTY_FUNCTION__
+//            << "\n\t> Reading " << name << " from " << path << "\n";
 
   // Regular expressions for parsing file content
   std::regex regEmpty = std::regex("[[:space:]]*");
   std::regex regComment = std::regex("#.*");
   std::regex regSeparator = std::regex ("=+");
-  std::regex regConfigFileName = std::regex("=+ ([[:alnum:]]+) =+");
-  std::regex regDataRow = std::regex(" *([[:alnum:]_]+): ?(.+)");
+  std::regex regConfigFileName = std::regex("=+ (\\w+) =+");
+  std::regex regDataRow = std::regex(" *(\\w+): ?(.+)");
   std::regex regMapField =
       std::regex("map\\([[:alnum:]_:<,> ]+, [[:alnum:]_:<> ]+\\) \\{");
 
@@ -201,10 +207,17 @@ AbstractConfigFile::read(ConfigIterator &it,
           // Find ConfigValue with this name and make it parse the data
           auto fieldIt = it.find(field);
           if (fieldIt != it.end()) {
-            bool ok = fieldIt->second.input(value, IConfigValue::FILE);
+            bool isConfigFile = fieldIt->second.isConfigFile();
+
+            std::string value_ = value;
+            if (isConfigFile && stdfs::path(value).parent_path().empty())
+              value_ = path.parent_path() / value;
+
+            bool ok = fieldIt->second.input(value_, IConfigValue::FILE);
             expectedFields.erase(fieldIt->first);
+
             if (!ok) {
-              if (fieldIt->second.isConfigFile()) {
+              if (isConfigFile) {
                 res |= SUBCONFIG_FILE_ERROR;
                 std::cerr << "Subconfig file '" << field << "' of '" << name
                           << "' had errors" << std::endl;

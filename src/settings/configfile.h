@@ -446,7 +446,7 @@ protected:
 
     /// Prints out the current filename for this config file
     std::ostream& output (std::ostream &os) const override {
-      return os << C::_path.string();
+      return os << C::_path.filename().string();
     }
 
     /// Delegate printing out this wrapper to the underlying configuration file
@@ -532,7 +532,8 @@ public:
   /// Read config values for \p name into \p it from the provided stream \p is
   static ReadResult read (ConfigIterator &it,
                           const std::string &name,
-                          std::istream &is);
+                          std::istream &is,
+                          const stdfs::path &path);
 
   /// Records this parameters and subconfig files into the provided json
   static void serialize (const ConfigIterator &iterator,
@@ -662,7 +663,7 @@ public:
   /// Load configuration data stored at path
   static bool readConfig (const stdfs::path &path) {
     std::ifstream ifs (path);
-    ReadResult res = read(config_iterator(), name(), ifs);
+    ReadResult res = read(config_iterator(), name(), ifs, path);
     _path = path;
 
     if (!stdfs::exists(path))
