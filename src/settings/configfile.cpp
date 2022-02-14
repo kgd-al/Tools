@@ -125,6 +125,10 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
   }
 }
 
+bool debugField(const std::string &field) {
+  return field.substr(0, 6) == "DEBUG_";
+}
+
 enum State { START, HEADER, BODY, END };
 AbstractConfigFile::ReadResult
 AbstractConfigFile::read(ConfigIterator &it,
@@ -230,7 +234,7 @@ AbstractConfigFile::read(ConfigIterator &it,
           }
 
           else {  // Error if could not find
-            if (field.substr(0, 6) != "DEBUG_") {
+            if (!debugField(field)) {
               std::cerr << "Could not find field '" << field
                         << "' in config file " << name << std::endl;
               res |= FIELD_UNKNOWN_ERROR;
@@ -248,6 +252,14 @@ AbstractConfigFile::read(ConfigIterator &it,
       // We're happily exiting
     case END: break;
     }
+  }
+
+  // ignore debug values
+  for (auto it = expectedFields.begin(); it != expectedFields.end(); ) {
+    if (debugField(*it))
+      it = expectedFields.erase(it);
+    else
+      ++it;
   }
 
   if (!expectedFields.empty()) {
