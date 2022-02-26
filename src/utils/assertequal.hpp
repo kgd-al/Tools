@@ -20,7 +20,7 @@ assertNaNEqual (const T&, const T&) {   return false;   }
 template <typename T>
 void assertDeepcopy (const T &lhs, const T &rhs) {
   if (&lhs == &rhs)
-    doThrow<std::logic_error>("Assert deepcopy violated: ", &lhs, " == ", &rhs);
+    Thrower<std::logic_error>("Assert deepcopy violated: ", &lhs, " == ", &rhs);
 }
 
 template <typename T>
@@ -28,7 +28,7 @@ constexpr std::enable_if_t<std::is_floating_point<T>::value, void>
 assertFuzzyEqual (const T &lhs, const T &rhs,
                   const T &threshold, bool deepcopy) {
   if (std::fabs(lhs - rhs) > threshold)
-    doThrow<std::logic_error>("Assert fuzzy equal violated: |", lhs, " - ",
+    Thrower<std::logic_error>("Assert fuzzy equal violated: |", lhs, " - ",
                               rhs, "| = ", std::fabs(lhs-rhs), " > ",
                               threshold);
 
@@ -41,7 +41,7 @@ template <typename T>
 std::enable_if_t<std::is_fundamental<T>::value, void>
 assertEqual (const T &lhs, const T &rhs, bool deepcopy) {
   if (lhs != rhs && !assertNaNEqual(lhs, rhs))
-    doThrow<std::logic_error>("Assert equal violated: ", lhs, " != ", rhs);
+    Thrower<std::logic_error>("Assert equal violated: ", lhs, " != ", rhs);
 
   if (deepcopy) assertDeepcopy(lhs, rhs);
 }

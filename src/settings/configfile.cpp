@@ -2,6 +2,7 @@
 #include <functional>
 
 #include "configfile.h"
+#include "../utils/indentingostream.h"
 
 namespace config {
 
@@ -42,8 +43,10 @@ void AbstractConfigFile::write (const ConfigIterator &iterator,
                                 const std::string& name, const stdfs::path& path,
                                 std::ostream &os) {
 
-//  std::cerr << __PRETTY_FUNCTION__
-//            << "\n\t> Writing " << name << " to " << path << "\n";
+#if !NDEBUG && 0
+  utils::IndentingOStreambuf indent (std::cerr);
+  std::cerr << "> Writing " << name << " to " << path << "\n";
+#endif
 
   if (iterator.size() == 0) {
     os << "Empty configuration file: " << name
@@ -136,8 +139,10 @@ AbstractConfigFile::read(ConfigIterator &it,
                          std::istream &is,
                          const stdfs::path &path) {
 
-//  std::cerr << __PRETTY_FUNCTION__
-//            << "\n\t> Reading " << name << " from " << path << "\n";
+#if !NDEBUG && 0
+  utils::IndentingOStreambuf indent (std::cerr);
+  std::cerr << "> Reading " << name << " from " << path << "\n";
+#endif
 
   // Regular expressions for parsing file content
   std::regex regEmpty = std::regex("[[:space:]]*");

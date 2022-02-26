@@ -244,15 +244,26 @@ reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
 // =============================================================================
 // == Stream operators
 
-/// Throws an exception of type T with the message built from the variadic
-/// arguments
-template <typename T, typename... ARGS>
-void doThrow (ARGS... args) {
+/// Builds a string from the arguments, delegating type conversion to
+///  appropriate operator<<
+template <typename... ARGS>
+std::string mergeToString (ARGS... args) {
   std::ostringstream oss;
   using expander = int[];
   (void)expander{0, (void(oss << std::forward<ARGS>(args)),0)...};
-  throw T(oss.str());
+  return oss.str();
 }
+
+/// Throws an exception of type T with the message built from the variadic
+/// arguments
+/// \tparam T the type of exception (defaults to std::invalid_argument)
+template <typename T=std::invalid_argument>
+struct Thrower {
+  template <typename... ARGS>
+  Thrower (ARGS... args) {
+    throw T(mergeToString(args...));
+  }
+};
 
 /// Stream values from a std::array<...>
 template <typename T, size_t SIZE>
@@ -331,7 +342,7 @@ template <typename KEY, typename VAL>
 VAL take (std::map<KEY, VAL> &map, KEY key) {
   auto it = map.find(key);
   if (it == map.end())
-    doThrow<std::invalid_argument>("'", key, "' is not a key of the provided map");
+    Thrower()("'", key, "' is not a key of the provided map");
   VAL val = it->second;
   map.erase(it);
   return val;

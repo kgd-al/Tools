@@ -689,9 +689,8 @@ public:
   static IConfigValue& configValue (const std::string &name) {
     auto it = config_iterator().find(name);
     if (it == config_iterator().end())
-      utils::doThrow<std::invalid_argument>(
-        "Unable to find configuration value '", name, "' in ",
-        ConfigFile::name());
+      utils::Thrower("Unable to find configuration value '", name, "' in ",
+                      ConfigFile::name());
 
     return it->second;
   }

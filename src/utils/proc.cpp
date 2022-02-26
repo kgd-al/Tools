@@ -44,7 +44,7 @@ Stat Stat::fetch (void) {
   Stat pstats;
   std::ifstream sstat (statsfile, std::ios_base::in);
   if (!sstat)
-    utils::doThrow<std::invalid_argument>("Unable to open ", statsfile);
+    utils::Thrower("Unable to open ", statsfile);
 
   sstat >> pstats.pid >> pstats.comm >> pstats.state >> pstats.ppid
         >> pstats.pgrp >> pstats.session >> pstats.tty_nr >> pstats.tpgid
@@ -72,7 +72,7 @@ Statm Statm::fetch (void) {
   Statm mstats;
   std::ifstream sstatm (statsfile, std::ios_base::in);
   if (!sstatm)
-    utils::doThrow<std::invalid_argument>("Unable to open ", statsfile);
+    utils::Thrower("Unable to open ", statsfile);
 
   sstatm >> mstats.size >> mstats.resident >> mstats.shared
          >> mstats.text
@@ -96,7 +96,7 @@ void assert_lighter_than(long int size_limit) {
     std::string unit, lunit;
     auto size = prettySize(resident, unit);
     auto lsize = prettySize(size_limit, lunit);
-    utils::doThrow<std::out_of_range>(
+    utils::Thrower<std::out_of_range>(
       "Program size (", size, unit, ") is greater than allowed max (",
       lsize, lunit, ")");
   }

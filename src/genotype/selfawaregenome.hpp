@@ -153,8 +153,7 @@ struct Extractor<T, typename std::enable_if<std::is_fundamental<T>::value
   /// \copydoc Extractor::operator()()
   std::string operator() (const T &value, const std::string &field) const {
     if (!field.empty())
-      utils::doThrow<std::invalid_argument>(
-        "No subfield in fundamental type ", utils::className<T>());
+      utils::Thrower("No subfield in fundamental type ", utils::className<T>());
 
     std::ostringstream oss;
     oss << value;
@@ -176,8 +175,8 @@ struct Extractor<T, typename std::enable_if<utils::is_cpp_array<T>::value
       ss >> c >> index >> c >> subfield;
 
       if (value.size() <= index)
-        utils::doThrow<std::invalid_argument>(
-          "Out-of-bounds: index ", index, " is greater than size ", value.size());
+        utils::Thrower("Out-of-bounds: index ", index, " is greater than size ",
+                       value.size());
 
       return Extractor<typename T::value_type>()(value[index], subfield);
 
@@ -877,9 +876,9 @@ public:
 
     auto it = _iterator.find(localField);
     if (it == _iterator.end())
-      utils::doThrow<std::invalid_argument>(
-        "'", localField, "' is not a valid field for ", utils::className<G>(),
-        "\nnote: in call to getField(", field, ")");
+      utils::Thrower("'", localField, "' is not a valid field for ",
+                     utils::className<G>(), "\nnote: in call to getField(",
+                     field, ")");
 
     return get(*it).getField(object, subField);
   }
@@ -948,7 +947,7 @@ public:
 
     std::ofstream ofs (path);
     if (!ofs.is_open())
-      utils::doThrow<std::invalid_argument>("Unable to write to ", path);
+      utils::Thrower<std::invalid_argument>("Unable to write to ", path);
 
     ofs << dump(indent);
   }
@@ -966,8 +965,7 @@ public:
                          uint verbosity = 0) {
 
     if (objects.size() < 2)
-      utils::doThrow<std::invalid_argument>(
-        "Aggregating ", objects.size(), " makes no sense...");
+      utils::Thrower("Aggregating ", objects.size(), " makes no sense...");
 
     utils::IndentingOStreambuf indent(os);
     for (auto &it: _iterator) {
