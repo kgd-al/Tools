@@ -249,8 +249,7 @@ reversion_wrapper<T> reverse (T&& iterable) { return { iterable }; }
 template <typename... ARGS>
 std::string mergeToString (ARGS... args) {
   std::ostringstream oss;
-  using expander = int[];
-  (void)expander{0, (void(oss << std::forward<ARGS>(args)),0)...};
+  (oss << ... << std::forward<ARGS>(args));
   return oss.str();
 }
 
