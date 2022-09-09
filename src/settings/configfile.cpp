@@ -219,8 +219,13 @@ AbstractConfigFile::read(ConfigIterator &it,
             bool isConfigFile = fieldIt->second.isConfigFile();
 
             std::string value_ = value;
-            if (isConfigFile && stdfs::path(value).parent_path().empty())
+            if (isConfigFile) {
+              if (!stdfs::path(value).parent_path().empty()) {
+                std::cerr << "Error in subconfig filename. Paths not allowed\n";
+                res |= SUBCONFIG_FILE_ERROR;
+              }
               value_ = path.parent_path() / value;
+            }
 
             bool ok = fieldIt->second.input(value_, IConfigValue::FILE);
             expectedFields.erase(fieldIt->first);
